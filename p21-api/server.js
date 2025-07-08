@@ -1,13 +1,20 @@
 const express = require('express');
 require('dotenv').config();
+const path = require('path');
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
 
 const app = express();
 app.use(express.json());
 
+const swaggerDocument = YAML.load(path.join(__dirname, 'openapi.yaml'));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
 // Routes
 app.use('/inventory', require('./routes/inventory'));
-app.use('/salesorders', require('./routes/salesorders'));
 app.use('/pricing', require('./routes/pricing'));
+app.use('/salesorders', require('./routes/salesorders'));
+app.use('/orders', require('./routes/orders'));
 
 // DEBUG fallback route (handles unmatched routes safely)
 app.all('*', (req, res) => {

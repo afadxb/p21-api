@@ -1,0 +1,24 @@
+const express = require('express');
+const app = express();
+require('dotenv').config();
+
+const itemRoutes = require('./routes/item');
+const salesOrderRoutes = require('./routes/salesorder');
+const miscRoutes = require('./routes/misc');
+
+app.use(express.json());
+app.use('/', itemRoutes);
+app.use('/', salesOrderRoutes);
+app.use('/', miscRoutes);
+
+// DEBUG fallback route (handles unmatched routes safely)
+app.all('*', (req, res) => {
+  res.status(404).json({
+    error: 'Route not found',
+    method: req.method,
+    path: req.path
+  });
+});
+
+const PORT = 3000;
+app.listen(PORT, () => console.log(`P21 API is running on port ${PORT}`));

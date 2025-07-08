@@ -1,0 +1,15 @@
+{
+  "name": "p21-api",
+  "version": "1.0.0",
+  "description": "P21-API interface to SQL Server for SRX",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "dotenv": "^16.0.3",
+    "mssql": "^10.0.1",
+    "axios": "^1.6.7"
+  }
+}

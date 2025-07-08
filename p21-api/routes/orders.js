@@ -59,4 +59,45 @@ router.get('/:order_id', async (req, res) => {
   }
 });
 
+// GET /orders/status/:id
+router.get('/status/:id', async (req, res) => {
+  const rawId = req.params.id.trim();
+  try {
+    await sql.connect(config);
+    const request = new sql.Request();
+    request.input('id', sql.VarChar, rawId);
+    const headerResult = await request.query(`
+      SELECT order_no, customer_id, order_date, ship2_name, ship2_add1, po_no,
+             job_price_hdr_uid, delete_flag, completed, company_id, date_created,
+             po_no_append, location_id, carrier_id, address_id, taker, job_name,
+             approved, cancel_flag, promise_date, ups_code, expedite_date,
+             oe_hdr.validation_status
+      FROM oe_hdr
+      WHERE order_no = @id OR job_name = @id;
+    `);
+    if (headerResult.recordset.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const orderNo = headerResult.recordset[0].order_no;
+    request.input('order_no', sql.Int, orderNo);
+    const lineResult = await request.query(`
+      SELECT order_no, qty_ordered, delete_flag, line_no, complete, disposition,
+             qty_allocated, qty_on_pick_tickets, qty_invoiced, required_date,
+             unit_size, unit_quantity, customer_part_number, cancel_flag,
+             qty_canceled
+      FROM oe_line
+      WHERE order_no = @order_no;
+    `);
+
+    res.json({
+      header: headerResult.recordset[0],
+      lines: lineResult.recordset
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

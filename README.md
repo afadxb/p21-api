@@ -1,0 +1,103 @@
+# P21 API
+
+This repository contains a minimal Express server exposing a handful of routes used by SRX/P21 integrations.
+
+## Setup
+
+1. Install Node.js 14+.
+2. Copy `.env.example` to `.env` and update the SQL connection details.
+3. Install dependencies and start the API from the `p21-api` directory:
+   ```bash
+   cd p21-api
+   npm install
+   PORT=3000 npm start
+   ```
+   The port can be changed with the `PORT` environment variable.
+4. Access the Swagger UI at `http://localhost:<PORT>/docs` for interactive API documentation.
+
+## Routes
+
+### `GET /inventory`
+List inventory items. Supports optional query parameters:
+- `limit` – number of results to return (default `100`)
+- `page` – page number when `paging=true`
+- `paging` – when `true`, enables SQL paging
+- `order` – `asc` or `desc` (default `asc`)
+- `inactive` – include inactive items (`true` or `false`)
+
+Example:
+```bash
+curl "http://localhost:3000/inventory?limit=5&paging=true&page=2"
+```
+
+### `GET /inventory/{item_id}`
+Returns a single item record.
+
+Example:
+```bash
+curl http://localhost:3000/inventory/ABC123
+```
+
+### `GET /pricing/{item_id}`
+Returns pricing information for an item (placeholder implementation).
+
+Example:
+```bash
+curl http://localhost:3000/pricing/ABC123
+```
+
+### `POST /salesorders`
+Creates a sales order (currently a placeholder).
+
+Example payload:
+```bash
+curl -X POST http://localhost:3000/salesorders \
+  -H "Content-Type: application/json" \
+  -d '{"customer_id":"CUST1","lines":[{"item_id":"ABC123","qty":1}]}'
+```
+
+### `GET /salesorders/{order_id}`
+Retrieves the status of a sales order.
+
+```bash
+curl http://localhost:3000/salesorders/ORDER123
+```
+
+### `POST /orders`
+Exports an order to CSV files. Required payload fields:
+`customer_id`, `sales_location_id`, `srx_order_id`, and an array of `lines` with `item_id` and `qty`.
+Optional `notes` can be included on the header or line items.
+
+Example:
+```bash
+curl -X POST http://localhost:3000/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": "CUST1",
+    "sales_location_id": "LOC1",
+    "srx_order_id": "SO123",
+    "notes": "Urgent",
+    "lines": [
+      { "item_id": "ABC123", "qty": 2 }
+    ]
+  }'
+```
+
+### `GET /orders/{order_id}`
+Check the export status of a previously created order.
+
+```bash
+curl http://localhost:3000/orders/SO123
+```
+
+## Top-Level `server.js`
+There is also a simple `server.js` in the project root that mounts the `salesorders` route under `/api`. It is mainly for quick testing:
+
+```bash
+node server.js
+# or
+PORT=4000 node server.js
+```
+
+Access it at `http://localhost:<PORT>/api`.
+

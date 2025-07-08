@@ -25,5 +25,6 @@ app.all('*', (req, res) => {
   });
 });
 
-const PORT = 3000;
+// Allow the port to be configured via the environment for flexibility
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`P21 API running on port ${PORT}`));

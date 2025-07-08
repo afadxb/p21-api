@@ -1,10 +1,13 @@
 const express = require('express');
 const app = express();
-const salesOrderRoute = require('./api/routes/salesorder');
+
+// The routes live inside the p21-api folder. The previous path was broken.
+const salesOrderRoute = require('./p21-api/routes/salesorders');
 
 app.use(express.json());
 app.use('/api', salesOrderRoute);
 
-app.listen(3000, () => {
-  console.log('API running on port 3000');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`API running on port ${PORT}`);
 });

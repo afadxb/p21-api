@@ -1,0 +1,97 @@
+openapi: 3.0.3
+info:
+  title: P21 API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /inventory:
+    get:
+      summary: List inventory items
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: paging
+          schema:
+            type: boolean
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: order
+          schema:
+            type: string
+            enum: [asc, desc]
+        - in: query
+          name: inactive
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Inventory list
+  /inventory/{item_id}:
+    get:
+      summary: Get item by id
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Item details
+        '404':
+          description: Item not found
+  /orders:
+    post:
+      summary: Export order to CSV
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer_id, sales_location_id, srx_order_id, lines]
+              properties:
+                customer_id:
+                  type: string
+                sales_location_id:
+                  type: string
+                srx_order_id:
+                  type: string
+                notes:
+                  type: string
+                lines:
+                  type: array
+                  items:
+                    type: object
+                    required: [item_id, qty]
+                    properties:
+                      item_id:
+                        type: string
+                      qty:
+                        type: integer
+                      notes:
+                        type: string
+      responses:
+        '200':
+          description: CSV paths returned
+  /orders/{order_id}:
+    get:
+      summary: Get export status
+      parameters:
+        - in: path
+          name: order_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order status
+        '404':
+          description: Order not found

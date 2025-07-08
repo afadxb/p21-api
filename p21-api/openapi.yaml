@@ -95,39 +95,4 @@ paths:
           description: Order status
         '404':
           description: Order not found
-  /orders/status/{id}:
-    get:
-      summary: Retrieve order status from P21
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Order details
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  header:
-                    type: object
-                    description: Order header with derived status
-                    properties:
-                      status:
-                        type: string
-                        description: Derived order status
-                        enum: [Open, Canceled, Deleted, Completed, Unapproved]
-                  lines:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        status:
-                          type: string
-                          description: Derived line status
-                          enum: [Fulfilled, Partially Fulfilled, Canceled, Deleted, In Progress, New]
-        '404':
-          description: Order not found
+

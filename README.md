@@ -6,7 +6,7 @@ This repository contains a minimal Express server exposing a handful of routes u
 
 1. Install Node.js 14+.
 
-2. Copy `p21-api/.env.example` to `p21-api/.env` and update the SQL connection details.
+2. Copy `p21-api/.env.example` to `p21-api/.env` and update the SQL connection details. Environment variables will be loaded from this file automatically.
 
 3. Install dependencies and start the API from the `p21-api` directory:
    ```bash

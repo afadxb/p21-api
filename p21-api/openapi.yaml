@@ -47,7 +47,7 @@ paths:
           description: Item details
         '404':
           description: Item not found
-  /salesorders:
+  /orders:
     post:
       summary: Export order to CSV
       requestBody:
@@ -81,32 +81,6 @@ paths:
       responses:
         '200':
           description: CSV paths returned
-  /orders:
-    post:
-      summary: Create sales order (placeholder)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: Placeholder response
-  /salesorders/{order_id}:
-    get:
-      summary: Get export status
-      parameters:
-        - in: path
-          name: order_id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Order status
-        '404':
-          description: Order not found
   /orders/{order_id}:
     get:
       summary: Get sales order status

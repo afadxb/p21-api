@@ -103,15 +103,16 @@ paths:
     get:
       summary: Get sales order status
       description: |
-        Retrieves a sales order header and its lines from P21. Each record is
-        augmented with a `status` field derived from various flag columns.
-        Implemented in `routes/salesorders.js`.
+        Retrieves a sales order header and its lines from P21. The `order_id`
+        can be either the numeric `order_no` or the `order_ref` associated with
+        the order. Each record is augmented with a `status` field derived from
+        various flag columns. Implemented in `routes/orders.js`.
       parameters:
         - in: path
           name: order_id
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         '200':
           description: Sales order header and lines returned with status fields

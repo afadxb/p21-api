@@ -70,12 +70,18 @@ curl -X POST http://localhost:3000/orders \
 ```
 
 ### `GET /orders/{order_id}`
-Retrieves the status of an existing order from P21. The response includes header
-information with a computed `status` field along with each line item and its
-individual `status`.
+Retrieves the status of an existing order from P21. The `{order_id}` can be the
+numeric `order_no` or the `order_ref` (formerly returned as `job_name`). The
+response includes header information with a computed `status` field along with
+each line item and its individual `status`. The header field `order_ref` maps to
+the `job_name` column in P21.
 
 ```bash
+# Lookup by order number
 curl http://localhost:3000/orders/123456
+
+# Lookup by order reference
+curl http://localhost:3000/orders/REF-001
 ```
 
 ## Standalone `server.js`

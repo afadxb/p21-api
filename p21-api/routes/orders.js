@@ -84,7 +84,7 @@ router.get('/:order_id', async (req, res) => {
              unit_size, unit_quantity, customer_part_number, cancel_flag,
              qty_canceled,
              CASE
-               WHEN qty_invoiced = qty_ordered THEN 'Fulfilled'
+               WHEN qty_invoiced >= qty_ordered THEN 'Fulfilled'
                WHEN qty_invoiced > 0 AND qty_invoiced < qty_ordered THEN 'Partially Fulfilled'
                WHEN cancel_flag = 'Y' THEN 'Canceled'
                WHEN delete_flag = 'Y' THEN 'Deleted'

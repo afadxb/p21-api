@@ -8,34 +8,46 @@ paths:
   /inventory:
     get:
       summary: List inventory items
+      description: |
+        Returns a paginated list of inventory records from the P21 database.
+        The logic for this endpoint lives in `routes/inventory.js` and supports
+        optional paging, sorting, and filtering of inactive items.
       parameters:
         - in: query
           name: limit
           schema:
             type: integer
+          description: Maximum number of records to return (default `100`).
         - in: query
           name: paging
           schema:
             type: boolean
+          description: When `true`, enables SQL paging.
         - in: query
           name: page
           schema:
             type: integer
+          description: Page number when `paging=true`.
         - in: query
           name: order
           schema:
             type: string
             enum: [asc, desc]
+          description: Sort order for the `item_id` column.
         - in: query
           name: inactive
           schema:
             type: boolean
+          description: Include inactive items (`true` or `false`).
       responses:
         '200':
-          description: Inventory list
+          description: Inventory list with paging metadata
   /inventory/{item_id}:
     get:
       summary: Get item by id
+      description: |
+        Retrieves a single inventory record. Implemented in
+        `routes/inventory.js`.
       parameters:
         - in: path
           name: item_id
@@ -48,8 +60,13 @@ paths:
         '404':
           description: Item not found
   /orders:
+
     post:
       summary: Export order to CSV
+      description: |
+        Exports an order to CSV files for downstream processing. The
+        implementation resides in `routes/orders.js` and also records export
+        status information in the `order_log` table.
       requestBody:
         required: true
         content:
@@ -81,9 +98,14 @@ paths:
       responses:
         '200':
           description: CSV paths returned
+
   /orders/{order_id}:
     get:
       summary: Get sales order status
+      description: |
+        Retrieves a sales order header and its lines from P21. Each record is
+        augmented with a `status` field derived from various flag columns.
+        Implemented in `routes/salesorders.js`.
       parameters:
         - in: path
           name: order_id

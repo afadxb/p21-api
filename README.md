@@ -5,7 +5,9 @@ This repository contains a minimal Express server exposing a handful of routes u
 ## Setup
 
 1. Install Node.js 14+.
+
 2. Copy `p21-api/.env.example` to `p21-api/.env` and update the SQL connection details.
+
 3. Install dependencies and start the API from the `p21-api` directory:
    ```bash
    cd p21-api
@@ -13,6 +15,7 @@ This repository contains a minimal Express server exposing a handful of routes u
    PORT=3000 npm start
    ```
    The port can be changed with the `PORT` environment variable.
+   
 4. Access the Swagger UI at `http://localhost:<PORT>/docs` for interactive API documentation.
 
 ## Routes
@@ -120,4 +123,5 @@ Create `p21-api/.env` before starting Compose:
 ```bash
 docker compose up -d
 ```
+
 

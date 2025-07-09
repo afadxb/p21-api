@@ -1,0 +1,9 @@
+# Ignore environment file
+.env
+
+# Node dependencies
+node_modules/
+
+# Generated export files
+p21-api/exports/*
+!p21-api/exports/.gitkeep

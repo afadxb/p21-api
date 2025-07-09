@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../db');
-const { computeHeaderStatus, computeLineStatus } = require('../utils/orderStatus');
 
 // POST /salesorders
 router.post('/', (req, res) => {
@@ -27,7 +26,14 @@ router.get('/:order_id', async (req, res) => {
              job_price_hdr_uid, delete_flag, completed, company_id, date_created,
              po_no_append, location_id, carrier_id, address_id, taker, job_name,
              approved, cancel_flag, promise_date, ups_code, expedite_date,
-             oe_hdr.validation_status
+             oe_hdr.validation_status,
+             CASE
+               WHEN cancel_flag = 'Y' THEN 'Canceled'
+               WHEN delete_flag = 'Y' THEN 'Deleted'
+               WHEN completed = 'Y' AND approved = 'Y' THEN 'Completed'
+               WHEN approved = 'N' THEN 'Unapproved'
+               ELSE 'Open'
+             END AS status
       FROM oe_hdr
       WHERE order_no = @orderId
     `);
@@ -42,18 +48,22 @@ router.get('/:order_id', async (req, res) => {
       SELECT order_no, qty_ordered, delete_flag, line_no, complete, disposition,
              qty_allocated, qty_on_pick_tickets, qty_invoiced, required_date,
              unit_size, unit_quantity, customer_part_number, cancel_flag,
-             qty_canceled
+             qty_canceled,
+             CASE
+               WHEN qty_invoiced = qty_ordered THEN 'Fulfilled'
+               WHEN qty_invoiced > 0 AND qty_invoiced < qty_ordered THEN 'Partially Fulfilled'
+               WHEN cancel_flag = 'Y' THEN 'Canceled'
+               WHEN delete_flag = 'Y' THEN 'Deleted'
+               WHEN qty_allocated > 0 THEN 'In Progress'
+               WHEN qty_ordered > 0 AND ISNULL(qty_allocated, 0) = 0 AND ISNULL(qty_invoiced, 0) = 0 AND ISNULL(qty_canceled, 0) = 0 THEN 'New'
+               ELSE 'Unknown'
+             END AS status
       FROM oe_line
       WHERE order_no = @orderId
     `);
 
     const header = headerResult.recordset[0];
-    header.status = computeHeaderStatus(header);
-
-    const lines = lineResult.recordset.map((ln) => ({
-      ...ln,
-      status: computeLineStatus(ln)
-    }));
+    const lines = lineResult.recordset;
 
     res.json({
       header,

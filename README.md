@@ -49,33 +49,33 @@ Example:
 curl http://localhost:3000/pricing/ABC123
 ```
 
-### `POST /salesorders`
+### `POST /orders`
 Creates a sales order (currently a placeholder).
 
 Example payload:
 ```bash
-curl -X POST http://localhost:3000/salesorders \
+curl -X POST http://localhost:3000/orders \
   -H "Content-Type: application/json" \
   -d '{"customer_id":"CUST1","lines":[{"item_id":"ABC123","qty":1}]}'
 ```
 
-### `GET /salesorders/{order_id}`
+### `GET /orders/{order_id}`
 Retrieves the status of a sales order. The response includes header information
 with a computed `status` field as well as line items each with their own
 `status`.
 
 ```bash
-curl http://localhost:3000/salesorders/ORDER123
+curl http://localhost:3000/orders/ORDER123
 ```
 
-### `POST /orders`
+### `POST /salesorders`
 Exports an order to CSV files. Required payload fields:
 `customer_id`, `sales_location_id`, `srx_order_id`, and an array of `lines` with `item_id` and `qty`.
 Optional `notes` can be included on the header or line items.
 
 Example:
 ```bash
-curl -X POST http://localhost:3000/orders \
+curl -X POST http://localhost:3000/salesorders \
   -H "Content-Type: application/json" \
   -d '{
     "customer_id": "CUST1",
@@ -88,15 +88,15 @@ curl -X POST http://localhost:3000/orders \
   }'
 ```
 
-### `GET /orders/{order_id}`
+### `GET /salesorders/{order_id}`
 Check the export status of a previously created order.
 
 ```bash
-curl http://localhost:3000/orders/SO123
+curl http://localhost:3000/salesorders/SO123
 ```
 
 ## Top-Level `server.js`
-There is also a simple `server.js` in the project root that mounts the `salesorders` route under `/api`. It is mainly for quick testing:
+There is also a simple `server.js` in the project root that mounts the `orders` route under `/api`. It is mainly for quick testing:
 
 ```bash
 node server.js

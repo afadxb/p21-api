@@ -105,7 +105,7 @@ paths:
       description: |
         Retrieves a sales order header and its lines from P21. Each record is
         augmented with a `status` field derived from various flag columns.
-        Implemented in `routes/salesorders.js`.
+        Implemented in `routes/orders.js`.
       parameters:
         - in: path
           name: order_id

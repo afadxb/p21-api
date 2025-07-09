@@ -60,7 +60,9 @@ curl -X POST http://localhost:3000/salesorders \
 ```
 
 ### `GET /salesorders/{order_id}`
-Retrieves the status of a sales order.
+Retrieves the status of a sales order. The response includes header information
+with a computed `status` field as well as line items each with their own
+`status`.
 
 ```bash
 curl http://localhost:3000/salesorders/ORDER123

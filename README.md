@@ -50,32 +50,13 @@ curl http://localhost:3000/pricing/ABC123
 ```
 
 ### `POST /orders`
-Creates a sales order (currently a placeholder).
+Exports a sales order to CSV files. Required fields are `customer_id`,
+`sales_location_id`, `srx_order_id` and an array of line items with `item_id`
+and `qty`. Optional `notes` may be provided on the header or individual lines.
 
 Example payload:
 ```bash
 curl -X POST http://localhost:3000/orders \
-  -H "Content-Type: application/json" \
-  -d '{"customer_id":"CUST1","lines":[{"item_id":"ABC123","qty":1}]}'
-```
-
-### `GET /orders/{order_id}`
-Retrieves the status of a sales order. The response includes header information
-with a computed `status` field as well as line items each with their own
-`status`.
-
-```bash
-curl http://localhost:3000/orders/ORDER123
-```
-
-### `POST /salesorders`
-Exports an order to CSV files. Required payload fields:
-`customer_id`, `sales_location_id`, `srx_order_id`, and an array of `lines` with `item_id` and `qty`.
-Optional `notes` can be included on the header or line items.
-
-Example:
-```bash
-curl -X POST http://localhost:3000/salesorders \
   -H "Content-Type: application/json" \
   -d '{
     "customer_id": "CUST1",
@@ -88,11 +69,13 @@ curl -X POST http://localhost:3000/salesorders \
   }'
 ```
 
-### `GET /salesorders/{order_id}`
-Check the export status of a previously created order.
+### `GET /orders/{order_id}`
+Retrieves the status of an existing order from P21. The response includes header
+information with a computed `status` field along with each line item and its
+individual `status`.
 
 ```bash
-curl http://localhost:3000/salesorders/SO123
+curl http://localhost:3000/orders/123456
 ```
 
 ## Top-Level `server.js`

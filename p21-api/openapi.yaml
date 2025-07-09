@@ -59,22 +59,8 @@ paths:
           description: Item details
         '404':
           description: Item not found
-  /pricing/{item_id}:
-    get:
-      summary: Get pricing (placeholder)
-      description: |
-        Placeholder route implemented in `routes/pricing.js`. It simply returns
-        a stubbed pricing response for the supplied `item_id`.
-      parameters:
-        - in: path
-          name: item_id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Pricing details
-  /salesorders:
+  /orders:
+
     post:
       summary: Export order to CSV
       description: |
@@ -111,40 +97,8 @@ paths:
                         type: string
       responses:
         '200':
-          description: Paths to the generated CSV files are returned
-  /orders:
-    post:
-      summary: Create sales order (placeholder)
-      description: |
-        Stub route found in `routes/salesorders.js`. In a full implementation it
-        would create a sales order in P21, but it currently returns a placeholder
-        response.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: Placeholder response
-  /salesorders/{order_id}:
-    get:
-      summary: Get export status
-      description: |
-        Looks up an order in the `order_log` table to report export status.
-        Implemented in `routes/orders.js`.
-      parameters:
-        - in: path
-          name: order_id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Order status
-        '404':
-          description: Order not found
+          description: CSV paths returned
+
   /orders/{order_id}:
     get:
       summary: Get sales order status

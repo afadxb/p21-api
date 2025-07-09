@@ -13,10 +13,8 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Routes
 app.use('/inventory', require('./routes/inventory'));
 app.use('/pricing', require('./routes/pricing'));
-// Swap the route mounts so `/salesorders` handles exporting orders and
-// `/orders` retrieves existing P21 order information
-app.use('/salesorders', require('./routes/orders'));
-app.use('/orders', require('./routes/salesorders'));
+// Unified orders route handles both creation (CSV export) and status lookup
+app.use('/orders', require('./routes/orders'));
 
 // DEBUG fallback route (handles unmatched routes safely)
 app.all('*', (req, res) => {

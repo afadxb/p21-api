@@ -8,34 +8,46 @@ paths:
   /inventory:
     get:
       summary: List inventory items
+      description: |
+        Returns a paginated list of inventory records from the P21 database.
+        The logic for this endpoint lives in `routes/inventory.js` and supports
+        optional paging, sorting, and filtering of inactive items.
       parameters:
         - in: query
           name: limit
           schema:
             type: integer
+          description: Maximum number of records to return (default `100`).
         - in: query
           name: paging
           schema:
             type: boolean
+          description: When `true`, enables SQL paging.
         - in: query
           name: page
           schema:
             type: integer
+          description: Page number when `paging=true`.
         - in: query
           name: order
           schema:
             type: string
             enum: [asc, desc]
+          description: Sort order for the `item_id` column.
         - in: query
           name: inactive
           schema:
             type: boolean
+          description: Include inactive items (`true` or `false`).
       responses:
         '200':
-          description: Inventory list
+          description: Inventory list with paging metadata
   /inventory/{item_id}:
     get:
       summary: Get item by id
+      description: |
+        Retrieves a single inventory record. Implemented in
+        `routes/inventory.js`.
       parameters:
         - in: path
           name: item_id
@@ -47,9 +59,28 @@ paths:
           description: Item details
         '404':
           description: Item not found
+  /pricing/{item_id}:
+    get:
+      summary: Get pricing (placeholder)
+      description: |
+        Placeholder route implemented in `routes/pricing.js`. It simply returns
+        a stubbed pricing response for the supplied `item_id`.
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pricing details
   /salesorders:
     post:
       summary: Export order to CSV
+      description: |
+        Exports an order to CSV files for downstream processing. The
+        implementation resides in `routes/orders.js` and also records export
+        status information in the `order_log` table.
       requestBody:
         required: true
         content:
@@ -80,10 +111,14 @@ paths:
                         type: string
       responses:
         '200':
-          description: CSV paths returned
+          description: Paths to the generated CSV files are returned
   /orders:
     post:
       summary: Create sales order (placeholder)
+      description: |
+        Stub route found in `routes/salesorders.js`. In a full implementation it
+        would create a sales order in P21, but it currently returns a placeholder
+        response.
       requestBody:
         required: true
         content:
@@ -96,6 +131,9 @@ paths:
   /salesorders/{order_id}:
     get:
       summary: Get export status
+      description: |
+        Looks up an order in the `order_log` table to report export status.
+        Implemented in `routes/orders.js`.
       parameters:
         - in: path
           name: order_id
@@ -110,6 +148,10 @@ paths:
   /orders/{order_id}:
     get:
       summary: Get sales order status
+      description: |
+        Retrieves a sales order header and its lines from P21. Each record is
+        augmented with a `status` field derived from various flag columns.
+        Implemented in `routes/salesorders.js`.
       parameters:
         - in: path
           name: order_id

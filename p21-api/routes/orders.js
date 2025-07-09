@@ -3,7 +3,6 @@ const router = express.Router();
 const { sql, config } = require('../db');
 const { generateFiles } = require('../utils/csvGenerator');
 const path = require('path');
-const fs = require('fs');
 
 // POST /orders
 router.post('/', async (req, res) => {

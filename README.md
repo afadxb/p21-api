@@ -91,14 +91,3 @@ Check the export status of a previously created order.
 curl http://localhost:3000/orders/SO123
 ```
 
-## Top-Level `server.js`
-There is also a simple `server.js` in the project root that mounts the `salesorders` route under `/api`. It is mainly for quick testing:
-
-```bash
-node server.js
-# or
-PORT=4000 node server.js
-```
-
-Access it at `http://localhost:<PORT>/api`.
-

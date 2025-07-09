@@ -13,6 +13,7 @@ This repository contains a minimal Express server exposing a handful of routes u
    PORT=3000 npm start
    ```
    The port can be changed with the `PORT` environment variable.
+   
 4. Access the Swagger UI at `http://localhost:<PORT>/docs` for interactive API documentation.
 
 ## Routes

@@ -5,7 +5,7 @@ This repository contains a minimal Express server exposing a handful of routes u
 ## Setup
 
 1. Install Node.js 14+.
-2. Copy `.env.example` to `.env` and update the SQL connection details.
+2. Copy `p21-api/.env.example` to `p21-api/.env` and update the SQL connection details.
 3. Install dependencies and start the API from the `p21-api` directory:
    ```bash
    cd p21-api
@@ -100,4 +100,24 @@ PORT=4000 node server.js
 ```
 
 Access it at `http://localhost:<PORT>/api`.
+
+## Docker Compose Example
+
+An example `docker-compose.yml` is included for running Kong, Mongo, and the API
+services together. The `p21-api` service reads its environment variables from
+`p21-api/.env`:
+
+```yaml
+  p21-api:
+    build:
+      context: ./p21-api
+    env_file:
+      - ./p21-api/.env
+```
+
+Create `p21-api/.env` before starting Compose:
+
+```bash
+docker compose up -d
+```
 

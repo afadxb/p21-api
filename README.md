@@ -78,13 +78,13 @@ individual `status`.
 curl http://localhost:3000/orders/123456
 ```
 
-## Top-Level `server.js`
-There is also a simple `server.js` in the project root that mounts the `orders` route under `/api`. It is mainly for quick testing:
+## Standalone `server.js`
+A simple `server.js` is provided in the `p21-api/` directory that mounts the `orders` route under `/api`. It is mainly for quick testing:
 
 ```bash
-node server.js
+node p21-api/server.js
 # or
-PORT=4000 node server.js
+PORT=4000 node p21-api/server.js
 ```
 
 Access it at `http://localhost:<PORT>/api`.

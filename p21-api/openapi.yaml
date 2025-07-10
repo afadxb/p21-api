@@ -42,6 +42,10 @@ paths:
       responses:
         '200':
           description: Inventory list with paging metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryListResponse'
   /inventory/{item_id}:
     get:
       summary: Get item by id
@@ -57,6 +61,10 @@ paths:
       responses:
         '200':
           description: Item details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemDetail'
         '404':
           description: Item not found
   /orders:
@@ -98,6 +106,10 @@ paths:
       responses:
         '200':
           description: CSV paths returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderExportResponse'
 
   /orders/{order_id}:
     get:
@@ -116,6 +128,183 @@ paths:
       responses:
         '200':
           description: Sales order header and lines returned with status fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
         '404':
           description: Order not found
 
+components:
+  schemas:
+    InventorySummary:
+      type: object
+      properties:
+        item_id:
+          type: string
+        item_desc:
+          type: string
+    InventoryListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventorySummary'
+        totalCount:
+          type: integer
+        page:
+          type: integer
+        totalPages:
+          type: integer
+    ItemDetail:
+      type: object
+      properties:
+        item_id:
+          type: string
+        inv_mast_uid:
+          type: integer
+        item_desc:
+          type: string
+        delete_flag:
+          type: string
+        weight:
+          type: number
+        net_weight:
+          type: number
+        inactive:
+          type: string
+        default_sales_discount_group:
+          type: string
+        extended_desc:
+          type: string
+        keywords:
+          type: string
+        base_unit:
+          type: string
+        commodity_code:
+          type: string
+        length:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+    OrderExportResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        files:
+          type: object
+          properties:
+            header:
+              type: string
+            line:
+              type: string
+            headerNotes:
+              type: string
+              nullable: true
+            lineNotes:
+              type: string
+              nullable: true
+    OrderHeader:
+      type: object
+      properties:
+        order_no:
+          type: integer
+        customer_id:
+          type: string
+        order_date:
+          type: string
+          format: date-time
+        ship2_name:
+          type: string
+        ship2_add1:
+          type: string
+        po_no:
+          type: string
+        job_price_hdr_uid:
+          type: integer
+        delete_flag:
+          type: string
+        completed:
+          type: string
+        company_id:
+          type: string
+        date_created:
+          type: string
+          format: date-time
+        po_no_append:
+          type: string
+        location_id:
+          type: string
+        carrier_id:
+          type: string
+        address_id:
+          type: string
+        taker:
+          type: string
+        approved:
+          type: string
+        cancel_flag:
+          type: string
+        promise_date:
+          type: string
+          format: date-time
+        ups_code:
+          type: string
+        expedite_date:
+          type: string
+          format: date-time
+        validation_status:
+          type: string
+        status:
+          type: string
+        order_ref:
+          type: string
+    OrderLine:
+      type: object
+      properties:
+        order_no:
+          type: integer
+        qty_ordered:
+          type: number
+        delete_flag:
+          type: string
+        line_no:
+          type: integer
+        complete:
+          type: string
+        disposition:
+          type: string
+        qty_allocated:
+          type: number
+        qty_on_pick_tickets:
+          type: number
+        qty_invoiced:
+          type: number
+        required_date:
+          type: string
+          format: date-time
+        unit_size:
+          type: number
+        unit_quantity:
+          type: number
+        customer_part_number:
+          type: string
+        cancel_flag:
+          type: string
+        qty_canceled:
+          type: number
+        status:
+          type: string
+    SalesOrderResponse:
+      type: object
+      properties:
+        header:
+          $ref: '#/components/schemas/OrderHeader'
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLine'

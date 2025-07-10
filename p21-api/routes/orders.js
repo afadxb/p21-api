@@ -3,7 +3,6 @@ const router = express.Router();
 const { sql, config } = require('../db');
 const { generateFiles } = require('../utils/csvGenerator');
 const path = require('path');
-const fs = require('fs');
 
 // POST /orders
 router.post('/', async (req, res) => {
@@ -43,18 +42,12 @@ router.post('/', async (req, res) => {
 // GET /orders/:order_id
 router.get('/:order_id', async (req, res) => {
   const rawId = req.params.order_id;
-  const orderId = parseInt(rawId, 10);
-
-  if (Number.isNaN(orderId)) {
-    return res.status(400).json({ error: 'Invalid order_id' });
-  }
-
   try {
     await sql.connect(config);
 
     const headerRequest = new sql.Request();
-    headerRequest.input('orderId', sql.Int, orderId);
-    const headerResult = await headerRequest.query(`
+    headerRequest.input('orderId', sql.VarChar, rawId);
+    const headerQuery = `
       SELECT order_no, customer_id, order_date, ship2_name, ship2_add1, po_no,
              job_price_hdr_uid, delete_flag, completed, company_id, date_created,
              po_no_append, location_id, carrier_id, address_id, taker, job_name,
@@ -68,22 +61,30 @@ router.get('/:order_id', async (req, res) => {
                ELSE 'Open'
              END AS status
       FROM oe_hdr
-      WHERE order_no = @orderId
-    `);
+      WHERE order_no = TRY_CAST(@orderId AS INT)
+         OR job_name = @orderId`;
+
+    const headerResult = await headerRequest.query(headerQuery);
 
     if (headerResult.recordset.length === 0) {
       return res.status(404).json({ error: 'Order not found' });
     }
 
+    const orderNumberForLines = headerResult.recordset[0]?.order_no;
+
+    if (!orderNumberForLines) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
     const lineRequest = new sql.Request();
-    lineRequest.input('orderId', sql.Int, orderId);
+    lineRequest.input('orderId', sql.Int, orderNumberForLines);
     const lineResult = await lineRequest.query(`
       SELECT order_no, qty_ordered, delete_flag, line_no, complete, disposition,
              qty_allocated, qty_on_pick_tickets, qty_invoiced, required_date,
              unit_size, unit_quantity, customer_part_number, cancel_flag,
              qty_canceled,
              CASE
-               WHEN qty_invoiced = qty_ordered THEN 'Fulfilled'
+               WHEN qty_invoiced >= qty_ordered THEN 'Fulfilled'
                WHEN qty_invoiced > 0 AND qty_invoiced < qty_ordered THEN 'Partially Fulfilled'
                WHEN cancel_flag = 'Y' THEN 'Canceled'
                WHEN delete_flag = 'Y' THEN 'Deleted'
@@ -95,7 +96,9 @@ router.get('/:order_id', async (req, res) => {
       WHERE order_no = @orderId
     `);
 
-    const header = headerResult.recordset[0];
+    const headerData = headerResult.recordset[0];
+    const { job_name, ...rest } = headerData;
+    const header = { ...rest, order_ref: job_name };
     const lines = lineResult.recordset;
 
     res.json({

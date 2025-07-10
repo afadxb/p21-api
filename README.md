@@ -28,13 +28,39 @@ List inventory items. Supports optional query parameters:
 - `order` – `asc` or `desc` (default `asc`)
 - `inactive` – include inactive items (`true` or `false`)
 
+Returns JSON in the form:
+
+```json
+{
+  "data": [ { "item_id": "ID", "item_desc": "Description" } ],
+  "totalCount": 0,
+  "page": 1,
+  "totalPages": 1
+}
+```
+
 Example:
 ```bash
 curl "http://localhost:3000/inventory?limit=5&paging=true&page=2"
 ```
 
 ### `GET /inventory/{item_id}`
-Returns a single item record.
+Returns a single item record with fields:
+- `item_id`
+- `inv_mast_uid`
+- `item_desc`
+- `delete_flag`
+- `weight`
+- `net_weight`
+- `inactive`
+- `default_sales_discount_group`
+- `extended_desc`
+- `keywords`
+- `base_unit`
+- `commodity_code`
+- `length`
+- `width`
+- `height`
 
 Example:
 ```bash
@@ -42,7 +68,10 @@ curl http://localhost:3000/inventory/ABC123
 ```
 
 ### `GET /pricing/{item_id}`
-Returns pricing information for an item (placeholder implementation).
+Returns pricing information for an item (placeholder). The response is:
+```json
+{ "message": "Pricing for item <item_id>" }
+```
 
 Example:
 ```bash
@@ -53,6 +82,19 @@ curl http://localhost:3000/pricing/ABC123
 Exports a sales order to CSV files. Required fields are `customer_id`,
 `sales_location_id`, `srx_order_id` and an array of line items with `item_id`
 and `qty`. Optional `notes` may be provided on the header or individual lines.
+The response returns the generated file paths:
+
+```json
+{
+  "message": "Order exported",
+  "files": {
+    "header": "<header.csv>",
+    "line": "<line.csv>",
+    "headerNotes": null,
+    "lineNotes": null
+  }
+}
+```
 
 Example payload:
 ```bash
@@ -71,10 +113,15 @@ curl -X POST http://localhost:3000/orders \
 
 ### `GET /orders/{order_id}`
 Retrieves the status of an existing order from P21. The `{order_id}` can be the
-numeric `order_no` or the `order_ref` (formerly returned as `job_name`). The
-response includes header information with a computed `status` field along with
-each line item and its individual `status`. The header field `order_ref` maps to
-the `job_name` column in P21.
+numeric `order_no` or the `order_ref` (formerly returned as `job_name`).
+The response body has:
+
+- `header` – object containing order fields such as `order_no`, `customer_id`,
+  `order_date`, `ship2_name`, `po_no`, `status` and `order_ref`.
+- `lines` – array of line objects with `order_no`, `line_no`, quantities and a
+  computed `status` for each line.
+
+The header field `order_ref` maps to the `job_name` column in P21.
 
 ```bash
 # Lookup by order number

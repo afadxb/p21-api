@@ -5,6 +5,7 @@ const { generateOrderFilesStrict } = require('../utils/csvGenerator');
 const path = require('path');
 
 // POST /orders
+// Store the order payload for later processing
 router.post('/', async (req, res) => {
   const {
     customer_id,
@@ -15,7 +16,6 @@ router.post('/', async (req, res) => {
     approved,
     ship_to_id,
     contract_number,
-    notes,
     lines
   } = req.body;
 
@@ -35,7 +35,67 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const exportDir = path.join(__dirname, '..', 'exports', `order-${order_ref}-${Date.now()}`);
+    await sql.connect(config);
+    const request = new sql.Request();
+    request.input('payload', sql.NVarChar(sql.MAX), JSON.stringify(req.body));
+    const result = await request.query(`
+      INSERT INTO orders_received (payload)
+      OUTPUT INSERTED.id AS id
+      VALUES (@payload);
+    `);
+    const insertedId = result.recordset[0].id;
+
+    res.json({
+      message: 'Order received',
+      id: insertedId
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /orders/export/:recordId
+// Generate CSV files from a stored order
+router.post('/export/:recordId', async (req, res) => {
+  const recordId = parseInt(req.params.recordId, 10);
+  if (isNaN(recordId)) {
+    return res.status(400).json({ error: 'Invalid record id' });
+  }
+
+  try {
+    await sql.connect(config);
+    const fetchReq = new sql.Request();
+    fetchReq.input('id', sql.Int, recordId);
+    const fetchResult = await fetchReq.query(`
+      SELECT payload, processed FROM orders_received WHERE id = @id;
+    `);
+
+    if (fetchResult.recordset.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const order = JSON.parse(fetchResult.recordset[0].payload);
+
+    const {
+      customer_id,
+      company_id,
+      sales_location_id,
+      taker,
+      order_ref,
+      approved,
+      ship_to_id,
+      contract_number,
+      notes,
+      lines
+    } = order;
+
+    const exportDir = path.join(
+      __dirname,
+      '..',
+      'exports',
+      `order-${order_ref}-${Date.now()}`
+    );
 
     const headerRecord = {
       'Order No': order_ref,
@@ -60,16 +120,19 @@ router.post('/', async (req, res) => {
 
     const csvInfo = generateOrderFilesStrict(headerRecord, lineRecords, exportDir);
 
-    await sql.connect(config);
-    const request = new sql.Request();
-    request.input('order_ref', sql.VarChar, order_ref);
-    request.input('order_id', sql.VarChar, String(csvInfo.orderId));
-    request.input('status', sql.VarChar, 'exported');
-    request.input('export_path', sql.VarChar, exportDir);
-    await request.query(`
+    const logReq = new sql.Request();
+    logReq.input('order_ref', sql.VarChar, order_ref);
+    logReq.input('order_id', sql.VarChar, String(csvInfo.orderId));
+    logReq.input('status', sql.VarChar, 'exported');
+    logReq.input('export_path', sql.VarChar, exportDir);
+    await logReq.query(`
       INSERT INTO order_log (order_ref, order_id, status, export_path, created_at)
       VALUES (@order_ref, @order_id, @status, @export_path, GETDATE());
     `);
+
+    const updateReq = new sql.Request();
+    updateReq.input('id', sql.Int, recordId);
+    await updateReq.query('UPDATE orders_received SET processed = 1 WHERE id = @id');
 
     res.json({
       message: 'Order exported',

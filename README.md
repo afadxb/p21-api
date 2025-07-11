@@ -79,20 +79,16 @@ curl http://localhost:3000/pricing/ABC123
 ```
 
 ### `POST /orders`
-Exports a sales order to CSV files. Required fields are `customer_id`,
-`company_id`, `sales_location_id`, `taker`, `order_ref`, `approved`,
-`ship_to_id`, `contract_number` and an array of line items with `item_id`
-and `qty`. Optional `notes` may be provided on the header or individual lines.
-The response returns the generated file paths and the import set number:
+Accepts a sales order payload and stores it in the database for later
+processing. Required fields are `customer_id`, `company_id`,
+`sales_location_id`, `taker`, `order_ref`, `approved`, `ship_to_id`,
+`contract_number` and an array of line items with `item_id` and `qty`.
+The response returns the ID of the stored record:
 
 ```json
 {
-  "message": "Order exported",
-  "files": {
-    "headerFile": "<header.txt>",
-    "linesFile": "<lines.txt>"
-  },
-  "importSetNumber": "ABC12345"
+  "message": "Order received",
+  "id": 1
 }
 ```
 
@@ -114,6 +110,14 @@ curl -X POST http://localhost:3000/orders \
       { "item_id": "ABC123", "qty": 2 }
     ]
   }'
+```
+
+### `POST /orders/export/{id}`
+Generates the CSV files for a previously stored order. The `{id}` value is the
+identifier returned from the initial `POST /orders` request.
+
+```bash
+curl -X POST http://localhost:3000/orders/export/1
 ```
 
 ### `GET /orders/{order_id}`

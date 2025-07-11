@@ -70,11 +70,10 @@ paths:
   /orders:
 
     post:
-      summary: Export order to CSV
+      summary: Store order payload
       description: |
-        Exports an order to CSV files for downstream processing. The
-        implementation resides in `routes/orders.js` and also records export
-        status information in the `order_log` table.
+        Receives a sales order payload and stores it in the `orders_received`
+        table for later CSV generation.
       requestBody:
         required: true
         content:
@@ -114,6 +113,26 @@ paths:
                         type: integer
                       notes:
                         type: string
+      responses:
+        '200':
+          description: Record identifier returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderReceivedResponse'
+
+  /orders/export/{id}:
+    post:
+      summary: Generate CSV for stored order
+      description: |
+        Reads the order payload from the `orders_received` table and generates
+        the CSV files. Results mirror the old `/orders` endpoint.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
       responses:
         '200':
           description: CSV file locations and import set number returned
@@ -215,6 +234,13 @@ components:
               type: string
         importSetNumber:
           type: string
+    OrderReceivedResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        id:
+          type: integer
     OrderHeader:
       type: object
       properties:

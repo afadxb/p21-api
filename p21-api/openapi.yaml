@@ -81,13 +81,24 @@ paths:
           application/json:
             schema:
               type: object
-              required: [customer_id, sales_location_id, srx_order_id, lines]
+              required:
+                [customer_id, company_id, sales_location_id, taker, order_ref, approved, ship_to_id, contract_number, lines]
               properties:
                 customer_id:
                   type: string
+                company_id:
+                  type: string
                 sales_location_id:
                   type: string
-                srx_order_id:
+                taker:
+                  type: string
+                order_ref:
+                  type: string
+                approved:
+                  type: string
+                ship_to_id:
+                  type: string
+                contract_number:
                   type: string
                 notes:
                   type: string
@@ -105,7 +116,7 @@ paths:
                         type: string
       responses:
         '200':
-          description: CSV paths returned
+          description: CSV file locations and import set number returned
           content:
             application/json:
               schema:
@@ -198,16 +209,12 @@ components:
         files:
           type: object
           properties:
-            header:
+            headerFile:
               type: string
-            line:
+            linesFile:
               type: string
-            headerNotes:
-              type: string
-              nullable: true
-            lineNotes:
-              type: string
-              nullable: true
+        importSetNumber:
+          type: string
     OrderHeader:
       type: object
       properties:

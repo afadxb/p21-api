@@ -1,6 +1,6 @@
 CREATE TABLE order_log (
   id INT IDENTITY(1,1) PRIMARY KEY,
-  srx_order_id VARCHAR(50) NOT NULL,
+  order_ref VARCHAR(50) NOT NULL,
   order_id VARCHAR(50) NULL,
   status VARCHAR(20) NOT NULL,
   export_path VARCHAR(255) NULL,

@@ -1,37 +1,83 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../db');
-const { generateFiles } = require('../utils/csvGenerator');
+const { generateOrderFilesStrict } = require('../utils/csvGenerator');
 const path = require('path');
 
 // POST /orders
 router.post('/', async (req, res) => {
-  const { customer_id, sales_location_id, srx_order_id, notes, lines } = req.body;
-  if (!customer_id || !sales_location_id || !srx_order_id || !Array.isArray(lines) || lines.length === 0) {
+  const {
+    customer_id,
+    company_id,
+    sales_location_id,
+    taker,
+    order_ref,
+    approved,
+    ship_to_id,
+    contract_number,
+    notes,
+    lines
+  } = req.body;
+
+  if (
+    !customer_id ||
+    !company_id ||
+    !sales_location_id ||
+    !taker ||
+    !order_ref ||
+    !approved ||
+    !ship_to_id ||
+    !contract_number ||
+    !Array.isArray(lines) ||
+    lines.length === 0
+  ) {
     return res.status(400).json({ error: 'Invalid order payload' });
   }
 
   try {
-    const csvInfo = generateFiles({ customer_id, sales_location_id, srx_order_id, notes, lines });
+    const exportDir = path.join(__dirname, '..', 'exports', `order-${order_ref}-${Date.now()}`);
+
+    const headerRecord = {
+      'Order No': order_ref,
+      'Customer ID': customer_id,
+      'Company ID': company_id,
+      'Sales Rep': taker,
+      'Completed': approved,
+      'Ship To Name': ship_to_id,
+      'Job Price Header UID': contract_number
+    };
+    if (notes) {
+      headerRecord['Notes'] = notes;
+    }
+
+    const lineRecords = lines.map((l, idx) => ({
+      'Line No': idx + 1,
+      'Item ID': l.item_id,
+      'Unit Quantity': l.qty,
+      'Ship Location ID': sales_location_id,
+      'Contract No.': contract_number
+    }));
+
+    const csvInfo = generateOrderFilesStrict(headerRecord, lineRecords, exportDir);
 
     await sql.connect(config);
     const request = new sql.Request();
-    request.input('srx_order_id', sql.VarChar, srx_order_id);
+    request.input('order_ref', sql.VarChar, order_ref);
+    request.input('order_id', sql.VarChar, String(csvInfo.orderId));
     request.input('status', sql.VarChar, 'exported');
-    request.input('export_path', sql.VarChar, csvInfo.exportDir);
+    request.input('export_path', sql.VarChar, exportDir);
     await request.query(`
-      INSERT INTO order_log (srx_order_id, status, export_path, created_at)
-      VALUES (@srx_order_id, @status, @export_path, GETDATE());
+      INSERT INTO order_log (order_ref, order_id, status, export_path, created_at)
+      VALUES (@order_ref, @order_id, @status, @export_path, GETDATE());
     `);
 
     res.json({
       message: 'Order exported',
       files: {
-        header: path.relative(process.cwd(), csvInfo.headerPath),
-        line: path.relative(process.cwd(), csvInfo.linePath),
-        headerNotes: csvInfo.headerNotesPath ? path.relative(process.cwd(), csvInfo.headerNotesPath) : null,
-        lineNotes: csvInfo.lineNotesPath ? path.relative(process.cwd(), csvInfo.lineNotesPath) : null
-      }
+        headerFile: path.relative(process.cwd(), csvInfo.headerFile),
+        linesFile: path.relative(process.cwd(), csvInfo.linesFile)
+      },
+      importSetNumber: csvInfo.importSetNumber
     });
   } catch (err) {
     console.error(err);

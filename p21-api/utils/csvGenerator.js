@@ -1,69 +1,46 @@
-const fs = require('fs');
-const path = require('path');
+// Node.js module for generating fixed-layout tab-delimited order files based on uploaded template structure
 
-function buildLine(fields) {
-  return fields.map(f => f != null ? String(f) : '').join('|') + '\n';
+const fs = require("fs");
+const path = require("path");
+
+// Fixed column layout extracted from templates (FULL LAYOUT as per provided templates)
+const headerColumns = [
+  "Import Set Number", "Order No", "Customer ID", "Order Date", "Ship To Name", "Ship To Address1", "Ship To Address2", "Ship To City", "Ship To State", "Ship To Zip", "Ship To Country", "PO No", "Job Price Header UID", "Delete Flag", "Completed", "Company ID", "Date Created", "Currency", "Exchange Rate", "Terms", "Freight Amount", "Tax Amount", "Total Amount", "Discount Amount", "Payment Method", "Credit Card Number", "Credit Card Expiration", "Billing Address", "Billing City", "Billing State", "Billing Zip", "Billing Country", "Sales Rep", "Notes", "Custom Field 1", "Custom Field 2", "Custom Field 3", "Custom Field 4", "Custom Field 5", "Web Order", "Web Customer ID"
+];
+
+const lineColumns = [
+  "Import Set Number", "Line No", "Item ID", "Unit Quantity", "Unit of Measure", "Unit Price", "Extended Description", "Source Location ID", "Ship Location ID", "Product Group ID", "Supplier ID", "Supplier Name", "Required Date", "Expedite Date", "Will Call", "Tax Item", "OK to Interchange", "Pricing Unit", "Commission Cost", "Other Cost", "PO Cost", "Disposition", "Scheduled", "Manual Price Override", "Commission Cost Edited", "Other Cost Edited", "Capture Usage", "Tag and Hold Class ID", "Contract Bin ID", "Contract No.", "Allocation Qty", "Promise Date", "Revision Level", "Resolve Item Contract", "Sample", "Quote Line No.", "Quote Complete", "Item Description", "Invoice No.", "Line No.1", "Line Custom Field 1", "Line Custom Field 2", "Line Custom Field 3", "Line Custom Field 4", "Line Custom Field 5", "Line Web Order Ref", "Line Web Customer Ref"
+];
+
+function formatTabDelimitedLine(data, columns) {
+  return columns.map(col => (data[col] !== undefined ? data[col] : "")).join("\t");
 }
 
-function generateFiles(order) {
-  const timestamp = Date.now();
-  const dir = path.join(__dirname, '..', 'exports', `order-${order.srx_order_id}-${timestamp}`);
-  fs.mkdirSync(dir, { recursive: true });
+function generateOrderFilesStrict(orderHeader, orderLines, outputPath) {
+  const orderId = orderHeader["Order No"] || Date.now();
+  const headerFile = `order_${orderId}_header.txt`;
+  const linesFile = `order_${orderId}_lines.txt`;
 
-  const headerPath = path.join(dir, 'orderquoteheader.txt');
-  const linePath = path.join(dir, 'orderquoteline.txt');
-  const headerNotesPath = path.join(dir, 'orderquoteheadernotes.txt');
-  const lineNotesPath = path.join(dir, 'orderquotelinenotes.txt');
+  const headerHeader = headerColumns.join("\t");
+  const lineHeader = lineColumns.join("\t");
 
-  const headerLines = [];
-  const lineLines = [];
-  const headerNotesLines = [];
-  const lineNotesLines = [];
+  const headerLine = formatTabDelimitedLine(orderHeader, headerColumns);
+  const linesContent = orderLines.map(line => formatTabDelimitedLine(line, lineColumns)).join("\n");
 
-  // Basic header record
-  headerLines.push(buildLine([
-    order.srx_order_id,
-    order.customer_id,
-    order.sales_location_id,
-    '' // placeholder for additional fields
-  ]));
-
-  if (order.notes) {
-    headerNotesLines.push(buildLine([
-      order.srx_order_id,
-      order.notes
-    ]));
-  }
-
-  order.lines.forEach((l, idx) => {
-    lineLines.push(buildLine([
-      order.srx_order_id,
-      idx + 1,
-      l.item_id,
-      l.qty
-    ]));
-
-    if (l.notes) {
-      lineNotesLines.push(buildLine([
-        order.srx_order_id,
-        idx + 1,
-        l.notes
-      ]));
-    }
-  });
-
-  fs.writeFileSync(headerPath, headerLines.join(''));
-  fs.writeFileSync(linePath, lineLines.join(''));
-  if (headerNotesLines.length) fs.writeFileSync(headerNotesPath, headerNotesLines.join(''));
-  if (lineNotesLines.length) fs.writeFileSync(lineNotesPath, lineNotesLines.join(''));
+  fs.mkdirSync(outputPath, { recursive: true });
+  fs.writeFileSync(path.join(outputPath, headerFile), headerHeader + "\n" + headerLine + "\n", { encoding: "utf8" });
+  fs.writeFileSync(path.join(outputPath, linesFile), lineHeader + "\n" + linesContent + "\n", { encoding: "utf8" });
 
   return {
-    headerPath,
-    linePath,
-    headerNotesPath: headerNotesLines.length ? headerNotesPath : null,
-    lineNotesPath: lineNotesLines.length ? lineNotesPath : null,
-    exportDir: dir
+    headerFile: path.join(outputPath, headerFile),
+    linesFile: path.join(outputPath, linesFile),
+    orderId
   };
 }
 
-module.exports = { generateFiles };
+module.exports = {
+  generateOrderFilesStrict,
+  headerColumns,
+  lineColumns
+};
+

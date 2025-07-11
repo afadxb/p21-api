@@ -80,19 +80,19 @@ curl http://localhost:3000/pricing/ABC123
 
 ### `POST /orders`
 Exports a sales order to CSV files. Required fields are `customer_id`,
-`sales_location_id`, `srx_order_id` and an array of line items with `item_id`
+`company_id`, `sales_location_id`, `taker`, `order_ref`, `approved`,
+`ship_to_id`, `contract_number` and an array of line items with `item_id`
 and `qty`. Optional `notes` may be provided on the header or individual lines.
-The response returns the generated file paths:
+The response returns the generated file paths and the import set number:
 
 ```json
 {
   "message": "Order exported",
   "files": {
-    "header": "<header.csv>",
-    "line": "<line.csv>",
-    "headerNotes": null,
-    "lineNotes": null
-  }
+    "headerFile": "<header.txt>",
+    "linesFile": "<lines.txt>"
+  },
+  "importSetNumber": "ABC12345"
 }
 ```
 
@@ -102,8 +102,13 @@ curl -X POST http://localhost:3000/orders \
   -H "Content-Type: application/json" \
   -d '{
     "customer_id": "CUST1",
+    "company_id": "COMP1",
     "sales_location_id": "LOC1",
-    "srx_order_id": "SO123",
+    "taker": "JDOE",
+    "order_ref": "SO123",
+    "approved": "Y",
+    "ship_to_id": "SHIP1",
+    "contract_number": "CNTR123",
     "notes": "Urgent",
     "lines": [
       { "item_id": "ABC123", "qty": 2 }

@@ -1,0 +1,6 @@
+CREATE TABLE orders_received (
+  id INT IDENTITY(1,1) PRIMARY KEY,
+  payload NVARCHAR(MAX) NOT NULL,
+  processed BIT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT GETDATE()
+);

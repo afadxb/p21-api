@@ -5,6 +5,95 @@ info:
 servers:
   - url: http://localhost:3000
 paths:
+  /v1/ap/suppliers:
+    get:
+      summary: List AP suppliers
+      description: |
+        Returns a paginated list of suppliers from P21. Results can be filtered by
+        company and by the most recent change to either the vendor or its payment terms.
+        Implemented in `routes/v1/ap/suppliers.js`.
+      parameters:
+        - in: query
+          name: updated_since
+          schema:
+            type: string
+            format: date-time
+          description: >-
+            Optional ISO 8601 timestamp. When supplied, only suppliers whose vendor or
+            payment terms were modified on or after this timestamp are returned.
+        - in: query
+          name: company
+          schema:
+            type: string
+          description: Filter to a specific P21 company id.
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Results page number (1-indexed).
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 500
+          description: Number of records to include per page (max 2000).
+      responses:
+        '200':
+          description: Supplier list with pagination metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierListResponse'
+        '400':
+          description: Invalid query parameter supplied
+  /v1/ap/paymentterms:
+    get:
+      summary: List AP payment terms
+      description: |
+        Returns a paginated list of payment terms from P21. Results can be filtered by
+        the last modification timestamp. Implemented in `routes/v1/ap/paymentterms.js`.
+      parameters:
+        - in: query
+          name: updated_since
+          schema:
+            type: string
+            format: date-time
+          description: >-
+            Optional ISO 8601 timestamp. When supplied, only payment terms modified on
+            or after this timestamp are returned.
+        - in: query
+          name: company
+          schema:
+            type: string
+          description: Optional company identifier used to build composite ids in the response.
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Results page number (1-indexed).
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 500
+          description: Number of records to include per page (max 2000).
+      responses:
+        '200':
+          description: Payment term list with pagination metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentTermListResponse'
+        '400':
+          description: Invalid query parameter supplied
   /inventory:
     get:
       summary: List inventory items
@@ -184,6 +273,180 @@ components:
         totalCount:
           type: integer
         page:
+          type: integer
+        totalPages:
+          type: integer
+    SupplierTerms:
+      type: object
+      properties:
+        id:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        discountPercent:
+          type: number
+          nullable: true
+        discountDays:
+          type: integer
+          nullable: true
+        netDays:
+          type: integer
+          nullable: true
+    Supplier:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+          nullable: true
+        externalSystemId:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        companyId:
+          type: string
+          nullable: true
+        currencyCode:
+          type: string
+          nullable: true
+        name:
+          type: string
+          nullable: true
+        paymentTerm:
+          type: string
+          nullable: true
+        supplierId:
+          type: string
+          nullable: true
+        ledgerDimension1:
+          type: string
+          nullable: true
+        taxDimension1:
+          type: string
+          nullable: true
+        clearance1Dimension1:
+          type: string
+          nullable: true
+        taxIndicator1:
+          type: string
+          nullable: true
+        taxIndicator2:
+          type: string
+          nullable: true
+        streetAddress:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        zip:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        telephone:
+          type: string
+          nullable: true
+        fax:
+          type: string
+          nullable: true
+        homepage:
+          type: string
+          nullable: true
+        emailAddress:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        isProcurable:
+          type: boolean
+        prepayment:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        terms:
+          $ref: '#/components/schemas/SupplierTerms'
+    SupplierListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Supplier'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+    PaymentTermStartDate:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [InvoiceDate]
+        numberOfMonths:
+          type: integer
+    PaymentTermLine:
+      type: object
+      properties:
+        cashDiscountPercentage:
+          type: number
+        endOfMonth:
+          type: boolean
+        numberOfDays:
+          type: integer
+        numberOfMonths:
+          type: integer
+    PaymentTerm:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+        isActive:
+          type: boolean
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentTermLine'
+        companyId:
+          type: string
+          nullable: true
+        paymentTermId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        startDate:
+          $ref: '#/components/schemas/PaymentTermStartDate'
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+    PaymentTermListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentTerm'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
           type: integer
         totalPages:
           type: integer

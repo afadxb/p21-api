@@ -16,6 +16,8 @@ app.use('/pricing', require('./routes/pricing'));
 // Unified orders route handles both creation (CSV export) and status lookup
 app.use('/orders', require('./routes/orders'));
 app.use('/v1/ap/suppliers', require('./routes/v1/ap/suppliers'));
+app.use('/v1/ap/paymentterms', require('./routes/v1/ap/paymentterms'));
+
 
 // DEBUG fallback route (handles unmatched routes safely)
 app.all('*', (req, res) => {

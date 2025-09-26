@@ -50,6 +50,52 @@ paths:
                 $ref: '#/components/schemas/SupplierListResponse'
         '400':
           description: Invalid query parameter supplied
+
+  /v1/ap/paymentterms:
+    get:
+      summary: List AP payment terms
+      description: |
+        Returns a paginated list of payment terms from P21. Results can be filtered by
+        the last modification timestamp. Implemented in `routes/v1/ap/paymentterms.js`.
+      parameters:
+        - in: query
+          name: updated_since
+          schema:
+            type: string
+            format: date-time
+          description: >-
+            Optional ISO 8601 timestamp. When supplied, only payment terms modified on
+            or after this timestamp are returned.
+        - in: query
+          name: company
+          schema:
+            type: string
+          description: Optional company identifier used to build composite ids in the response.
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Results page number (1-indexed).
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 500
+          description: Number of records to include per page (max 2000).
+      responses:
+        '200':
+          description: Payment term list with pagination metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentTermListResponse'
+        '400':
+          description: Invalid query parameter supplied
+
   /inventory:
     get:
       summary: List inventory items
@@ -343,6 +389,71 @@ components:
           type: integer
         totalPages:
           type: integer
+
+    PaymentTermStartDate:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [InvoiceDate]
+        numberOfMonths:
+          type: integer
+    PaymentTermLine:
+      type: object
+      properties:
+        cashDiscountPercentage:
+          type: number
+        endOfMonth:
+          type: boolean
+        numberOfDays:
+          type: integer
+        numberOfMonths:
+          type: integer
+    PaymentTerm:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+        isActive:
+          type: boolean
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentTermLine'
+        companyId:
+          type: string
+          nullable: true
+        paymentTermId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        startDate:
+          $ref: '#/components/schemas/PaymentTermStartDate'
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+    PaymentTermListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentTerm'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+
     ItemDetail:
       type: object
       properties:

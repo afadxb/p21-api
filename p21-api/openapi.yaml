@@ -50,6 +50,7 @@ paths:
                 $ref: '#/components/schemas/SupplierListResponse'
         '400':
           description: Invalid query parameter supplied
+
   /v1/ap/paymentterms:
     get:
       summary: List AP payment terms
@@ -94,6 +95,7 @@ paths:
                 $ref: '#/components/schemas/PaymentTermListResponse'
         '400':
           description: Invalid query parameter supplied
+
   /inventory:
     get:
       summary: List inventory items
@@ -387,6 +389,7 @@ components:
           type: integer
         totalPages:
           type: integer
+
     PaymentTermStartDate:
       type: object
       properties:
@@ -450,6 +453,7 @@ components:
           type: integer
         totalPages:
           type: integer
+
     ItemDetail:
       type: object
       properties:

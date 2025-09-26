@@ -18,6 +18,7 @@ app.use('/orders', require('./routes/orders'));
 app.use('/v1/ap/suppliers', require('./routes/v1/ap/suppliers'));
 app.use('/v1/ap/paymentterms', require('./routes/v1/ap/paymentterms'));
 
+
 // DEBUG fallback route (handles unmatched routes safely)
 app.all('*', (req, res) => {
   res.status(404).json({

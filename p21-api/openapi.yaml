@@ -184,32 +184,6 @@ paths:
         '500':
           description: Unexpected error while inserting order records
 
-  /v1/sales/order:
-    post:
-      summary: Create sales orders in TMP_SRX tables
-      description: |
-        Accepts one or more sales orders, assigns a new `Import_Set_No` to each,
-        and inserts the header and line rows into the `TMP_SRX_Header` and
-        `TMP_SRX_Line` tables within a single SQL Server transaction. Implemented
-        in `routes/v1/sales/order.js`.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SalesOrderUpsertRequest'
-      responses:
-        '201':
-          description: Orders were stored and the generated import set numbers returned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SalesOrderUpsertResponse'
-        '400':
-          description: Request payload failed validation
-        '500':
-          description: Unexpected error while inserting order records
-
 components:
   schemas:
     InventorySummary:

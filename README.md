@@ -18,6 +18,10 @@ This repository contains a minimal Express server exposing a handful of routes u
    
 4. Access the Swagger UI at `http://localhost:<PORT>/docs` for interactive API documentation.
 
+### Swagger/OpenAPI URL
+
+When running locally with the default port, open `http://localhost:3000/docs` in your browser to view the interactive documentation. This UI is generated from the repository's `p21-api/openapi.yaml` specification file.
+
 ## Routes
 
 ### `GET /inventory`
@@ -138,6 +142,59 @@ curl http://localhost:3000/orders/123456
 
 # Lookup by order reference
 curl http://localhost:3000/orders/REF-001
+```
+
+### `POST /v1/sales/order`
+Creates one or more sales orders by inserting into the `TMP_SRX_Header` and
+`TMP_SRX_Line` staging tables. The API calculates the next `Import_Set_No`
+based on the most recent header value and applies it to both the header and all
+line rows inside a single SQL Server transaction.
+
+The request body can either provide a single `{ "header": { ... }, "lines": [] }`
+object or an object with an `orders` array containing multiple entries. Header
+objects must include `customerId`, `companyId`, `salesLocationId`, `approved`,
+`shipToId`, and `contractNumber`. Each line must include `lineNo`, `itemId`,
+`unitQuantity`, and `unitOfMeasure`.
+
+Example payload for multiple orders:
+
+```bash
+curl -X POST http://localhost:3000/v1/sales/order \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orders": [
+      {
+        "header": {
+          "customerId": "10001",
+          "companyId": "COMP001",
+          "salesLocationId": "200",
+          "approved": "Y",
+          "shipToId": "50001",
+          "contractNumber": "CN-2024-0001"
+        },
+        "lines": [
+          {
+            "lineNo": "1",
+            "itemId": "MAT-00045",
+            "unitQuantity": "10",
+            "unitOfMeasure": "EA"
+          }
+        ]
+      }
+    ]
+  }'
+```
+
+On success the service responds with HTTP `201` and returns the generated import
+set number for each order along with the number of line rows inserted:
+
+```json
+{
+  "message": "Sales orders saved",
+  "orders": [
+    { "importSetNo": "15", "linesInserted": 1 }
+  ]
+}
 ```
 
 ## Standalone `server.js`

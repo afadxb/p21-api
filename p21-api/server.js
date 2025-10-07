@@ -17,6 +17,7 @@ app.use('/pricing', require('./routes/pricing'));
 app.use('/orders', require('./routes/orders'));
 app.use('/v1/ap/suppliers', require('./routes/v1/ap/suppliers'));
 app.use('/v1/ap/paymentterms', require('./routes/v1/ap/paymentterms'));
+app.use('/v1/sales/order', require('./routes/v1/sales/order'));
 
 
 // DEBUG fallback route (handles unmatched routes safely)

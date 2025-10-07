@@ -96,12 +96,12 @@ paths:
         '400':
           description: Invalid query parameter supplied
 
-  /inventory:
+  /v1/inventory/items:
     get:
       summary: List inventory items
       description: |
         Returns a paginated list of inventory records from the P21 database.
-        The logic for this endpoint lives in `routes/inventory.js` and supports
+        The logic for this endpoint lives in `routes/v1/inventory/items.js` and supports
         optional paging, sorting, and filtering of inactive items.
       parameters:
         - in: query
@@ -137,12 +137,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InventoryListResponse'
-  /inventory/{item_id}:
+  /v1/inventory/items/{item_id}:
     get:
       summary: Get item by id
       description: |
         Retrieves a single inventory record. Implemented in
-        `routes/inventory.js`.
+        `routes/v1/inventory/items.js`.
       parameters:
         - in: path
           name: item_id
@@ -158,103 +158,31 @@ paths:
                 $ref: '#/components/schemas/ItemDetail'
         '404':
           description: Item not found
-  /orders:
-
+  /v1/sales/order:
     post:
-      summary: Store order payload
+      summary: Create sales orders in TMP_SRX tables
       description: |
-        Receives a sales order payload and stores it in the `orders_received`
-        table for later CSV generation.
+        Accepts one or more sales orders, assigns a new `Import_Set_No` to each,
+        and inserts the header and line rows into the `TMP_SRX_Header` and
+        `TMP_SRX_Line` tables within a single SQL Server transaction. Implemented
+        in `routes/v1/sales/order.js`.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required:
-                [customer_id, company_id, sales_location_id, taker, order_ref, approved, ship_to_id, contract_number, lines]
-              properties:
-                customer_id:
-                  type: string
-                company_id:
-                  type: string
-                sales_location_id:
-                  type: string
-                taker:
-                  type: string
-                order_ref:
-                  type: string
-                approved:
-                  type: string
-                ship_to_id:
-                  type: string
-                contract_number:
-                  type: string
-                notes:
-                  type: string
-                lines:
-                  type: array
-                  items:
-                    type: object
-                    required: [item_id, qty]
-                    properties:
-                      item_id:
-                        type: string
-                      qty:
-                        type: integer
-                      notes:
-                        type: string
+              $ref: '#/components/schemas/SalesOrderUpsertRequest'
       responses:
-        '200':
-          description: Record identifier returned
+        '201':
+          description: Orders were stored and the generated import set numbers returned
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderReceivedResponse'
-
-  /orders/export/{id}:
-    post:
-      summary: Generate CSV for stored order
-      description: |
-        Reads the order payload from the `orders_received` table and generates
-        the CSV files. Results mirror the old `/orders` endpoint.
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: CSV file locations and import set number returned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderExportResponse'
-
-  /orders/{order_id}:
-    get:
-      summary: Get sales order status
-      description: |
-        Retrieves a sales order header and its lines from P21. The `order_id`
-        can be either the numeric `order_no` or the `order_ref` associated with
-        the order. Each record is augmented with a `status` field derived from
-        various flag columns. Implemented in `routes/orders.js`.
-      parameters:
-        - in: path
-          name: order_id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Sales order header and lines returned with status fields
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SalesOrderResponse'
-        '404':
-          description: Order not found
+                $ref: '#/components/schemas/SalesOrderUpsertResponse'
+        '400':
+          description: Request payload failed validation
+        '500':
+          description: Unexpected error while inserting order records
 
   /v1/sales/order:
     post:

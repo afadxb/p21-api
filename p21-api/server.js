@@ -11,12 +11,11 @@ const swaggerDocument = YAML.load(path.join(__dirname, 'openapi.yaml'));
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Routes
-app.use('/inventory', require('./routes/inventory'));
+app.use('/v1/inventory/items', require('./routes/v1/inventory/items'));
 app.use('/pricing', require('./routes/pricing'));
-// Unified orders route handles both creation (CSV export) and status lookup
-app.use('/orders', require('./routes/orders'));
 app.use('/v1/ap/suppliers', require('./routes/v1/ap/suppliers'));
 app.use('/v1/ap/paymentterms', require('./routes/v1/ap/paymentterms'));
+app.use('/v1/sales/order', require('./routes/v1/sales/order'));
 
 
 // DEBUG fallback route (handles unmatched routes safely)

@@ -18,9 +18,13 @@ This repository contains a minimal Express server exposing a handful of routes u
    
 4. Access the Swagger UI at `http://localhost:<PORT>/docs` for interactive API documentation.
 
+### Swagger/OpenAPI URL
+
+When running locally with the default port, open `http://localhost:3000/docs` in your browser to view the interactive documentation. This UI is generated from the repository's `p21-api/openapi.yaml` specification file.
+
 ## Routes
 
-### `GET /inventory`
+### `GET /v1/inventory/items`
 List inventory items. Supports optional query parameters:
 - `limit` – number of results to return (default `100`)
 - `page` – page number when `paging=true`
@@ -41,10 +45,10 @@ Returns JSON in the form:
 
 Example:
 ```bash
-curl "http://localhost:3000/inventory?limit=5&paging=true&page=2"
+curl "http://localhost:3000/v1/inventory/items?limit=5&paging=true&page=2"
 ```
 
-### `GET /inventory/{item_id}`
+### `GET /v1/inventory/items/{item_id}`
 Returns a single item record with fields:
 - `item_id`
 - `inv_mast_uid`
@@ -64,7 +68,7 @@ Returns a single item record with fields:
 
 Example:
 ```bash
-curl http://localhost:3000/inventory/ABC123
+curl http://localhost:3000/v1/inventory/items/ABC123
 ```
 
 ### `GET /pricing/{item_id}`
@@ -78,70 +82,61 @@ Example:
 curl http://localhost:3000/pricing/ABC123
 ```
 
-### `POST /orders`
-Accepts a sales order payload and stores it in the database for later
-processing. Required fields are `customer_id`, `company_id`,
-`sales_location_id`, `taker`, `order_ref`, `approved`, `ship_to_id`,
-`contract_number` and an array of line items with `item_id` and `qty`.
-The response returns the ID of the stored record:
+### `POST /v1/sales/order`
+Creates one or more sales orders by inserting into the `TMP_SRX_Header` and
+`TMP_SRX_Line` staging tables. The API calculates the next `Import_Set_No`
+based on the most recent header value and applies it to both the header and all
+line rows inside a single SQL Server transaction.
 
-```json
-{
-  "message": "Order received",
-  "id": 1
-}
-```
+The request body can either provide a single `{ "header": { ... }, "lines": [] }`
+object or an object with an `orders` array containing multiple entries. Header
+objects must include `customerId`, `companyId`, `salesLocationId`, `approved`,
+`shipToId`, and `contractNumber`. Each line must include `lineNo`, `itemId`,
+`unitQuantity`, and `unitOfMeasure`.
 
-Example payload:
+Example payload for multiple orders:
+
 ```bash
-curl -X POST http://localhost:3000/orders \
+curl -X POST http://localhost:3000/v1/sales/order \
   -H "Content-Type: application/json" \
   -d '{
-    "customer_id": "CUST1",
-    "company_id": "COMP1",
-    "sales_location_id": "LOC1",
-    "taker": "JDOE",
-    "order_ref": "SO123",
-    "approved": "Y",
-    "ship_to_id": "SHIP1",
-    "contract_number": "CNTR123",
-    "notes": "Urgent",
-    "lines": [
-      { "item_id": "ABC123", "qty": 2 }
+    "orders": [
+      {
+        "header": {
+          "customerId": "10001",
+          "companyId": "COMP001",
+          "salesLocationId": "200",
+          "approved": "Y",
+          "shipToId": "50001",
+          "contractNumber": "CN-2024-0001"
+        },
+        "lines": [
+          {
+            "lineNo": "1",
+            "itemId": "MAT-00045",
+            "unitQuantity": "10",
+            "unitOfMeasure": "EA"
+          }
+        ]
+      }
     ]
   }'
 ```
 
-### `POST /orders/export/{id}`
-Generates the CSV files for a previously stored order. The `{id}` value is the
-identifier returned from the initial `POST /orders` request.
+On success the service responds with HTTP `201` and returns the generated import
+set number for each order along with the number of line rows inserted:
 
-```bash
-curl -X POST http://localhost:3000/orders/export/1
-```
-
-### `GET /orders/{order_id}`
-Retrieves the status of an existing order from P21. The `{order_id}` can be the
-numeric `order_no` or the `order_ref` (formerly returned as `job_name`).
-The response body has:
-
-- `header` – object containing order fields such as `order_no`, `customer_id`,
-  `order_date`, `ship2_name`, `po_no`, `status` and `order_ref`.
-- `lines` – array of line objects with `order_no`, `line_no`, quantities and a
-  computed `status` for each line.
-
-The header field `order_ref` maps to the `job_name` column in P21.
-
-```bash
-# Lookup by order number
-curl http://localhost:3000/orders/123456
-
-# Lookup by order reference
-curl http://localhost:3000/orders/REF-001
+```json
+{
+  "message": "Sales orders saved",
+  "orders": [
+    { "importSetNo": "15", "linesInserted": 1 }
+  ]
+}
 ```
 
 ## Standalone `server.js`
-A simple `server.js` is provided in the `p21-api/` directory that mounts the `orders` route under `/api`. It is mainly for quick testing:
+A simple `server.js` is provided in the `p21-api/` directory that mounts the Express routes for quick testing:
 
 ```bash
 node p21-api/server.js
@@ -149,7 +144,7 @@ node p21-api/server.js
 PORT=4000 node p21-api/server.js
 ```
 
-Access it at `http://localhost:<PORT>/api`.
+Access it at `http://localhost:<PORT>`.
 
 ## Docker Compose Example
 

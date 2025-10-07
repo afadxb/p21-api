@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { sql, config } = require('../db');
-const { getPagingParams } = require('../utils/paging');
+const { sql, config } = require('../../../db');
+const { getPagingParams } = require('../../../utils/paging');
 
-// GET /inventory (list)
+// GET /v1/inventory/items (list)
 router.get('/', async (req, res) => {
   try {
     await sql.connect(config);
@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
     const request = new sql.Request();
     request.input('limit', sql.Int, limit);
 
-    let filters = [];
+    const filters = [];
     if (req.query.inactive !== undefined) {
       const isActive = req.query.inactive.toLowerCase() === 'false' ? 'N' : 'Y';
       filters.push('inactive = @inactive');
@@ -58,14 +58,14 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /inventory/:item_id
+// GET /v1/inventory/items/:item_id
 router.get('/:item_id', async (req, res) => {
   try {
     await sql.connect(config);
-    const raw_id = req.params.item_id || '';
-    const item_id = raw_id.trim().substring(0, 50); // sanitize input
+    const rawId = req.params.item_id || '';
+    const itemId = rawId.trim().substring(0, 50); // sanitize input
     const request = new sql.Request();
-    request.input('item_id', sql.VarChar, item_id);
+    request.input('item_id', sql.VarChar, itemId);
 
     const result = await request.query(`
       SELECT TOP (1) item_id, inv_mast_uid, item_desc, delete_flag, weight, net_weight, inactive,
@@ -85,3 +85,4 @@ router.get('/:item_id', async (req, res) => {
 });
 
 module.exports = router;
+

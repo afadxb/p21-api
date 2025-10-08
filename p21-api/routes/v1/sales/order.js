@@ -228,7 +228,7 @@ router.post('/', async (req, res) => {
       await transaction.commit();
 
       res.status(201).json({
-        message: 'Sales orders saved',
+        message: 'Sales orders Accepted',
         orders: responseOrders
       });
     } catch (err) {

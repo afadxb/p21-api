@@ -3,8 +3,8 @@ const router = express.Router();
 const { sql, config } = require('../../../db');
 
 const DEFAULT_PAGE = 1;
-const DEFAULT_PAGE_SIZE = 500;
-const MAX_PAGE_SIZE = 2000;
+const DEFAULT_LIMIT = 500;
+const MAX_LIMIT = 2000;
 
 const parsePositiveInt = (value, defaultValue) => {
   const parsed = parseInt(value, 10);
@@ -75,12 +75,13 @@ const formatSupplierRecord = (row) => {
 
 router.get('/', async (req, res) => {
   const page = parsePositiveInt(req.query.page, DEFAULT_PAGE);
-  let pageSize = parsePositiveInt(req.query.page_size, DEFAULT_PAGE_SIZE);
-  if (pageSize > MAX_PAGE_SIZE) {
-    pageSize = MAX_PAGE_SIZE;
+  const requestedLimit = req.query.limit ?? req.query.page_size ?? req.query.pageSize;
+  let limit = parsePositiveInt(requestedLimit, DEFAULT_LIMIT);
+  if (limit > MAX_LIMIT) {
+    limit = MAX_LIMIT;
   }
 
-  const offset = (page - 1) * pageSize;
+  const offset = (page - 1) * limit;
 
   const updatedSinceParam = req.query.updated_since;
   const companyParam = typeof req.query.company === 'string' ? req.query.company.trim() : null;
@@ -108,7 +109,7 @@ router.get('/', async (req, res) => {
 
     const dataRequest = new sql.Request();
     dataRequest.input('offset', sql.Int, offset);
-    dataRequest.input('pageSize', sql.Int, pageSize);
+    dataRequest.input('limit', sql.Int, limit);
     if (updatedSinceDate) {
       dataRequest.input('updatedSince', sql.DateTime2, updatedSinceDate);
     }
@@ -154,7 +155,7 @@ router.get('/', async (req, res) => {
       INNER JOIN terms ON vendor.default_terms_id = terms.terms_id
       ${whereClause}
       ORDER BY vendor.vendor_id
-      OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;
+      OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
     `;
 
     const result = await dataRequest.query(dataQuery);
@@ -180,12 +181,16 @@ router.get('/', async (req, res) => {
 
     const suppliers = result.recordset.map(formatSupplierRecord);
 
+    const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
+    const lastPage = totalPages === 0 ? page === 1 : page >= totalPages;
+
     res.json({
       data: suppliers,
       page,
-      pageSize,
+      limit,
       total,
-      totalPages: Math.ceil(total / pageSize)
+      totalPages,
+      lastPage
     });
   } catch (error) {
     console.error('Error fetching suppliers:', error);

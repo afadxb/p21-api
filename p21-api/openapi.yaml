@@ -12,6 +12,10 @@ paths:
         Returns a paginated list of suppliers from P21. Results can be filtered by
         company and by the most recent change to either the vendor or its payment terms.
         Implemented in `routes/v1/ap/suppliers.js`.
+
+        Example request:
+
+        `GET /v1/ap/suppliers?page=2&limit=250&company=COMP01`
       parameters:
         - in: query
           name: updated_since
@@ -34,7 +38,7 @@ paths:
             default: 1
           description: Results page number (1-indexed).
         - in: query
-          name: page_size
+          name: limit
           schema:
             type: integer
             minimum: 1
@@ -546,12 +550,14 @@ components:
             $ref: '#/components/schemas/Supplier'
         page:
           type: integer
-        pageSize:
+        limit:
           type: integer
         total:
           type: integer
         totalPages:
           type: integer
+        lastPage:
+          type: boolean
 
     PaymentTermStartDate:
       type: object

@@ -44,7 +44,7 @@ const headerFields = [
   { column: 'Third_Party_Billing_Flag_Desc', key: 'thirdPartyBillingFlagDesc', type: sql.NVarChar(40) },
   { column: 'Capture_Usage_Default', key: 'captureUsageDefault', type: sql.NVarChar(1) },
   { column: 'Allocate', key: 'allocate', type: sql.NVarChar(1) },
-  { column: 'Contract_Number', key: 'contractNumber', type: sql.NVarChar(255), required: true },
+  { column: 'Contract_Number', key: 'contractNumber', type: sql.NVarChar(255) },
   { column: 'Invoice_Batch_Number', key: 'invoiceBatchNumber', type: sql.NVarChar(255) },
   { column: 'Ship_To_Email_Address', key: 'shipToEmailAddress', type: sql.NVarChar(255) },
   { column: 'Set_Invoice_Exchange_Rate_Source_Desc', key: 'setInvoiceExchangeRateSourceDesc', type: sql.NVarChar(40) },
@@ -159,6 +159,25 @@ router.post('/', async (req, res) => {
         const err = new Error(`Order ${orderIndex + 1} must contain at least one line item`);
         err.status = 400;
         throw err;
+      }
+
+      if (isEmpty(header.contractNumber)) {
+        const missingUnitPriceLines = [];
+
+        lines.forEach((line, lineIndex) => {
+          if (isEmpty(line?.unitPrice)) {
+            missingUnitPriceLines.push(lineIndex + 1);
+          }
+        });
+
+        if (missingUnitPriceLines.length > 0) {
+          const missingLineList = missingUnitPriceLines.join(', ');
+          const err = new Error(
+            `Order ${orderIndex + 1} must include a contractNumber or unitPrice on all lines. Missing unitPrice on line(s): ${missingLineList}`
+          );
+          err.status = 400;
+          throw err;
+        }
       }
 
       lines.forEach((line, lineIndex) => {

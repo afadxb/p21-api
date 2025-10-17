@@ -194,7 +194,7 @@ router.post('/', async (req, res) => {
       const lastImportSetNoRequest = new sql.Request(transaction);
       const lastResult = await lastImportSetNoRequest.query(`
         SELECT ISNULL(MAX(CAST(Import_Set_No AS INT)), 0) AS lastImportSetNo
-        FROM TMP_SRX_Header WITH (UPDLOCK, HOLDLOCK);
+        FROM TMP_OE_Header WITH (UPDLOCK, HOLDLOCK);
       `);
 
       let nextImportSetNo = Number(lastResult.recordset?.[0]?.lastImportSetNo) || 0;
@@ -222,7 +222,7 @@ router.post('/', async (req, res) => {
         });
 
         await headerRequest.query(`
-          INSERT INTO TMP_SRX_Header (${headerColumnList})
+          INSERT INTO TMP_OE_Header (${headerColumnList})
           VALUES (${headerParamList});
         `);
 
@@ -236,7 +236,7 @@ router.post('/', async (req, res) => {
             );
           });
           await lineRequest.query(`
-            INSERT INTO TMP_SRX_Line (${lineColumnList})
+            INSERT INTO TMP_OE_Line (${lineColumnList})
             VALUES (${lineParamList});
           `);
         }

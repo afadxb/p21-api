@@ -44,13 +44,28 @@ paths:
                       itemId: SKU-ABC-123
                       unitQuantity: 5
                       unitOfMeasure: EA
-              batchFull:
-                summary: Batch insert with complete header/lines
+              singleOrderPriced:
+                summary: Single order priced per line without a contract number
                 value:
-                  orders:
-                    - header:
-                        customerId: 123456
-                        companyId: ACC
+                  header:
+                    customerId: 1001
+                    companyId: ACU
+                    salesLocationId: 1
+                    shipToId: 2001
+                    # contractNumber intentionally omitted
+                  lines:
+                    - lineNo: 1
+                      itemId: SKU-ABC-123
+                      unitQuantity: 5
+                      unitOfMeasure: EA
+                      unitPrice: "12.5"
+            batchFull:
+              summary: Batch insert with complete header/lines
+              value:
+                orders:
+                  - header:
+                        customerId: 1001
+                        companyId: ACU
                         salesLocationId: 4
                         customerPoNumber: PO-98765
                         approved: "Y"

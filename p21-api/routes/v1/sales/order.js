@@ -56,7 +56,7 @@ const headerFields = [
 ];
 
 const lineFields = [
-  { column: 'Import_Set_No', key: 'importSetNo', type: sql.NVarChar(8), derived: true },
+  { column: 'Import_Set_Number', key: 'importSetNo', type: sql.NVarChar(8), derived: true },
   { column: 'Line_No', key: 'lineNo', type: sql.Decimal(18, 2), required: true, numeric: true },
   { column: 'Item_ID', key: 'itemId', type: sql.NVarChar(40), required: true },
   { column: 'Unit_Quantity', key: 'unitQuantity', type: sql.Decimal(18, 2), required: true, numeric: true },

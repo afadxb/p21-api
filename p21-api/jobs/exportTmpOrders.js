@@ -126,10 +126,11 @@ function formatRecord(record, layout) {
 
 async function fetchPendingImportSets(pool) {
   const result = await pool.request().query(`
-    SELECT DISTINCT h.Import_Set_No
+    SELECT h.Import_Set_No
     FROM TMP_OE_Header h
     WHERE COALESCE(NULLIF(LTRIM(RTRIM(h.Exported)), ''), 'N') <> '${EXPORTED_FLAG_VALUE}'
-    ORDER BY TRY_CAST(h.Import_Set_No AS INT);
+    GROUP BY h.Import_Set_No
+    ORDER BY MIN(TRY_CAST(h.Import_Set_No AS INT));
   `);
   return result.recordset.map((row) => row.Import_Set_No).filter(Boolean);
 }

@@ -48,10 +48,10 @@ paths:
                 summary: Single order priced per line without a contract number
                 value:
                   header:
-                    customerId: 1001
-                    companyId: ACU
+                    customerId: 123456
+                    companyId: ACC
                     salesLocationId: 100002
-                    shipToId: 2001
+                    shipToId: 123001
                     # contractNumber intentionally omitted
                   lines:
                     - lineNo: 1
@@ -64,9 +64,9 @@ paths:
                 value:
                   orders:
                     - header:
-                        customerId: 1001
-                        companyId: ACU
-                        salesLocationId: 4
+                        customerId: 123456
+                        companyId: ACC
+                        salesLocationId: 100003
                         customerPoNumber: PO-98765
                         approved: "Y"
                         shipToId: 123001

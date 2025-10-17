@@ -37,11 +37,8 @@ paths:
                     customerId: 1001
                     companyId: ACU
                     salesLocationId: 1
-                    approved: "Y"
                     shipToId: 2001
                     contractNumber: CT-12345
-                    customerPoNumber: PO-1001
-                    orderDate: "20250116"
                   lines:
                     - lineNo: 1
                       itemId: SKU-ABC-123
@@ -323,7 +320,8 @@ components:
         approved:
           type: string
           maxLength: 1
-          description: "DB column: Approved flag (Y/N). Required."
+          default: "N"
+          description: "DB column: Approved flag (Y/N). Defaults to \"N\" when omitted."
         shipToId:
           type: number
           format: double
@@ -473,7 +471,6 @@ components:
         - customerId
         - companyId
         - salesLocationId
-        - approved
         - shipToId
         - contractNumber
 

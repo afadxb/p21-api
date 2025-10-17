@@ -16,7 +16,7 @@ const headerFields = [
   { column: 'Order_Date', key: 'orderDate', type: sql.NVarChar(8) },
   { column: 'Requested_Date', key: 'requestedDate', type: sql.NVarChar(8) },
   { column: 'Quote', key: 'quote', type: sql.NVarChar(1) },
-  { column: 'Approved', key: 'approved', type: sql.NVarChar(1), required: true },
+  { column: 'Approved', key: 'approved', type: sql.NVarChar(1) },
   { column: 'Ship_To_ID', key: 'shipToId', type: sql.Decimal(18, 2), required: true, numeric: true },
   { column: 'Ship_To_Name', key: 'shipToName', type: sql.NVarChar(50) },
   { column: 'Ship_To_Address_1', key: 'shipToAddress1', type: sql.NVarChar(50) },
@@ -185,6 +185,9 @@ router.post('/', async (req, res) => {
       for (const order of ordersPayload) {
         const currentImportSetNo = String(++nextImportSetNo);
         const headerValues = { ...order.header, importSetNo: currentImportSetNo };
+        if (isEmpty(headerValues.approved)) {
+          headerValues.approved = 'N';
+        }
         const lineValues = order.lines.map((line) => ({
           ...line,
           importSetNo: currentImportSetNo

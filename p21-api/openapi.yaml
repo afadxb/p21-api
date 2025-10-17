@@ -59,11 +59,11 @@ paths:
                       unitQuantity: 5
                       unitOfMeasure: EA
                       unitPrice: "12.5"
-            batchFull:
-              summary: Batch insert with complete header/lines
-              value:
-                orders:
-                  - header:
+              batchFull:
+                summary: Batch insert with complete header/lines
+                value:
+                  orders:
+                    - header:
                         customerId: 1001
                         companyId: ACU
                         salesLocationId: 4

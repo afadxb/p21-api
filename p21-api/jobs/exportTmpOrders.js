@@ -12,34 +12,108 @@ const EXPORT_INTERVAL_MS = Number.isFinite(EXPORT_INTERVAL_MINUTES)
 const EXPORTED_FLAG_VALUE = 'Y';
 
 const headerLayout = [
-  { key: 'Import_Set_No', width: 8, zeroPadLength: 4 },
-  { key: 'Customer_ID', width: 16 },
-  { key: 'Customer_Name', width: 16 },
-  { key: 'Customer_PO_Number', width: 24 },
-  { key: 'Taker', width: 16 },
-  { key: 'Order_Date', width: 40, formatter: formatDate },
-  { key: 'Ship_To_ID', width: 7 },
-  { key: 'Ship_To_Name', width: 17 },
-  { key: 'Ship_To_Address_1', width: 24 },
-  { key: 'Ship_To_City', width: 16 },
-  { key: 'Ship_To_State', width: 8 },
-  { key: 'Ship_To_Zip_Code', width: 8 },
-  { key: 'Ship_To_Country', width: 55 },
-  { key: 'Terms_Desc', width: 113 },
-  { key: 'Contract_Number', width: 6 }
+  { key: 'Import_Set_No', zeroPadLength: 4 },
+  { key: 'Customer_ID' },
+  { key: 'Customer_Name' },
+  { key: 'Company_ID' },
+  { key: 'Sales_Location_ID' },
+  { key: 'Customer_PO_Number' },
+  { key: 'Contact_ID' },
+  { key: 'Contact_Name' },
+  { key: 'Taker' },
+  { key: 'Job_Name' },
+  { key: 'Order_Date', formatter: formatDate },
+  { key: 'Requested_Date', formatter: formatDate },
+  { key: 'Quote' },
+  { key: 'Approved' },
+  { key: 'Ship_To_ID' },
+  { key: 'Ship_To_Name' },
+  { key: 'Ship_To_Address_1' },
+  { key: 'Ship_To_Address_2' },
+  { key: 'Ship_To_City' },
+  { key: 'Ship_To_State' },
+  { key: 'Ship_To_Zip_Code' },
+  { key: 'Ship_To_Country' },
+  { key: 'Source_Location_ID' },
+  { key: 'Carrier_ID' },
+  { key: 'Carrier_Name' },
+  { key: 'Route' },
+  { key: 'Packing_Basis' },
+  { key: 'Delivery_Instructions' },
+  { key: 'Terms' },
+  { key: 'Terms_Desc' },
+  { key: 'Will_Call' },
+  { key: 'Class_1' },
+  { key: 'Class_2' },
+  { key: 'Class_3' },
+  { key: 'Class_4' },
+  { key: 'Class_5' },
+  { key: 'RMA_Flag' },
+  { key: 'Freight_Code' },
+  { key: 'Third_Party_Billing_Flag_Desc' },
+  { key: 'Capture_Usage_Default' },
+  { key: 'Allocate' },
+  { key: 'Contract_Number' },
+  { key: 'Invoice_Batch_Number' },
+  { key: 'Ship_To_Email_Address' },
+  { key: 'Set_Invoice_Exchange_Rate_Source_Desc' },
+  { key: 'Ship_To_Phone' },
+  { key: 'Currency_ID' },
+  { key: 'Apply_Builder_Allowance_Flag' },
+  { key: 'Quote_Expiration_Date', formatter: formatDate },
+  { key: 'Promise_Date', formatter: formatDate }
 ];
 
 const lineLayout = [
-  { key: 'Import_Set_Number', width: 8, zeroPadLength: 4 },
-  { key: 'Line_No', width: 8 },
-  { key: 'Item_ID', width: 16 },
-  { key: 'Unit_Quantity', width: 8, formatter: formatQuantity },
-  { key: 'Unit_of_Measure', width: 8 },
-  { key: 'Unit_Price', width: 9, formatter: formatPrice },
-  { key: 'Extended_Description', width: 55 },
-  { key: 'Required_Date', width: 15, formatter: formatDate },
-  { key: 'Pricing_Unit', width: 2 }
+  { key: 'Import_Set_Number', zeroPadLength: 4 },
+  { key: 'Line_No' },
+  { key: 'Item_ID' },
+  { key: 'Unit_Quantity', formatter: formatQuantity },
+  { key: 'Unit_of_Measure' },
+  { key: 'Unit_Price', formatter: formatPrice },
+  { key: 'Extended_Description' },
+  { key: 'Source_Location_ID' },
+  { key: 'Ship_Location_ID' },
+  { key: 'Product_Group_ID' },
+  { key: 'Supplier_ID' },
+  { key: 'Supplier_Name' },
+  { key: 'Required_Date', formatter: formatDate },
+  { key: 'Expedite_Date', formatter: formatDate },
+  { key: 'Will_Call' },
+  { key: 'Tax_Item' },
+  { key: 'OK_to_Interchange' },
+  { key: 'Pricing_Unit' },
+  { key: 'Commission_Cost', formatter: formatPrice },
+  { key: 'Other_Cost', formatter: formatPrice },
+  { key: 'PO_Cost', formatter: formatPrice },
+  { key: 'Disposition' },
+  { key: 'Scheduled' },
+  { key: 'Manual_Price_Override' },
+  { key: 'Commission_Cost_Edited' },
+  { key: 'Other_Cost_Edited' },
+  { key: 'Capture_Usage' },
+  { key: 'Tag_and_Hold_Class_ID' },
+  { key: 'Contract_Bin_ID' },
+  { key: 'Contract_No' },
+  { key: 'Allocation_Qty', formatter: formatQuantity },
+  { key: 'Promise_Date', formatter: formatDate }
 ];
+
+function normaliseYear(yearPart) {
+  if (!yearPart) {
+    return '';
+  }
+
+  if (yearPart.length === 2) {
+    const yearNumber = Number(yearPart);
+    if (Number.isNaN(yearNumber)) {
+      return yearPart;
+    }
+    return yearNumber >= 70 ? `19${yearPart}` : `20${yearPart}`;
+  }
+
+  return yearPart;
+}
 
 function formatDate(raw) {
   const value = String(raw || '').trim();
@@ -48,23 +122,32 @@ function formatDate(raw) {
   }
 
   if (/^\d{8}$/.test(value)) {
-    const firstPart = value.slice(0, 2);
-    const secondPart = value.slice(2, 4);
-    const lastPart = value.slice(4);
+    if (value === '00000000') {
+      return '';
+    }
 
-    if (Number(firstPart) > 12) {
+    const maybeMonth = Number(value.slice(0, 2));
+
+    if (Number.isFinite(maybeMonth) && maybeMonth > 12) {
       const year = value.slice(0, 4);
       const month = value.slice(4, 6);
       const day = value.slice(6, 8);
-      return `${month}/${day}/${year.slice(-2)}`;
+      return `${month}/${day}/${normaliseYear(year)}`;
     }
 
-    return `${firstPart}/${secondPart}/${lastPart.slice(-2)}`;
+    const month = value.slice(0, 2);
+    const day = value.slice(2, 4);
+    const year = value.slice(4, 8);
+    return `${month}/${day}/${normaliseYear(year)}`;
   }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    if (value === '0000-00-00') {
+      return '';
+    }
+
     const [year, month, day] = value.split('-');
-    return `${month}/${day}/${year.slice(-2)}`;
+    return `${month}/${day}/${normaliseYear(year)}`;
   }
 
   return value;
@@ -96,22 +179,18 @@ function formatPrice(raw) {
   return trimmed || '0';
 }
 
-function padField(value, { width, align = 'left', zeroPadLength }) {
+function prepareField(value, { width, zeroPadLength }) {
   let output = value === null || value === undefined ? '' : String(value).trim();
 
   if (zeroPadLength && output) {
     output = output.padStart(zeroPadLength, '0');
   }
 
-  if (output.length > width) {
+  if (width && output.length > width) {
     output = output.slice(0, width);
   }
 
-  if (align === 'right') {
-    return output.padStart(width, ' ');
-  }
-
-  return output.padEnd(width, ' ');
+  return output;
 }
 
 function formatRecord(record, layout) {
@@ -119,9 +198,9 @@ function formatRecord(record, layout) {
     .map((field) => {
       const rawValue = record[field.key];
       const value = field.formatter ? field.formatter(rawValue, record) : rawValue;
-      return padField(value, field);
+      return prepareField(value, field);
     })
-    .join('');
+    .join('\t');
 }
 
 async function fetchPendingImportSets(pool) {
@@ -263,6 +342,6 @@ module.exports = {
     formatDate,
     formatQuantity,
     formatPrice,
-    padField
+    prepareField
   }
 };

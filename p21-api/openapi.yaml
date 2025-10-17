@@ -49,13 +49,13 @@ paths:
                 value:
                   orders:
                     - header:
-                        customerId: 1001
-                        companyId: ACU
+                        customerId: 123456
+                        companyId: ACC
                         salesLocationId: 4
                         customerPoNumber: PO-98765
                         approved: "Y"
-                        shipToId: 2001
-                        contractNumber: CT-90001
+                        shipToId: 123001
+                        contractNumber: 27
                         quote: "N"
                         applyBuilderAllowanceFlag: "N"
                         willCall: "N"

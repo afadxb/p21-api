@@ -1,492 +1,197 @@
 openapi: 3.0.3
 info:
-  title: P21 API
-  version: 1.0.0
+  title: Accurate API
+  version: "1.0.0"
 servers:
-  - url: http://localhost:3000
+  - url: https://api.accuratefasteners.com
 paths:
-  /v1/ap/suppliers:
-    get:
-      summary: List AP suppliers
-      description: |
-        Returns a paginated list of suppliers from P21. Results can be filtered by
-        company and by the most recent change to either the vendor or its payment terms.
-        Implemented in `routes/v1/ap/suppliers.js`.
-
-        Example request:
-
-        `GET /v1/ap/suppliers?page=2&limit=250&company=COMP01`
-      parameters:
-        - in: query
-          name: updated_since
-          schema:
-            type: string
-            format: date-time
-          description: >-
-            Optional ISO 8601 timestamp. When supplied, only suppliers whose vendor or
-            payment terms were modified on or after this timestamp are returned.
-        - in: query
-          name: company
-          schema:
-            type: string
-          description: Filter to a specific P21 company id.
-        - in: query
-          name: page
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-          description: Results page number (1-indexed).
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 2000
-            default: 500
-          description: Number of records to include per page (max 2000).
-      responses:
-        '200':
-          description: Supplier list with pagination metadata
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SupplierListResponse'
-        '400':
-          description: Invalid query parameter supplied
-
-  /v1/ap/paymentterms:
-    get:
-      summary: List AP payment terms
-      description: |
-        Returns a paginated list of payment terms from P21. Results can be filtered by
-        the last modification timestamp. Implemented in `routes/v1/ap/paymentterms.js`.
-      parameters:
-        - in: query
-          name: updated_since
-          schema:
-            type: string
-            format: date-time
-          description: >-
-            Optional ISO 8601 timestamp. When supplied, only payment terms modified on
-            or after this timestamp are returned.
-        - in: query
-          name: company
-          schema:
-            type: string
-          description: Optional company identifier used to build composite ids in the response.
-        - in: query
-          name: page
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-          description: Results page number (1-indexed).
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 2000
-            default: 500
-          description: Number of records to include per page (max 2000).
-      responses:
-        '200':
-          description: Payment term list with pagination metadata
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaymentTermListResponse'
-        '400':
-          description: Invalid query parameter supplied
-
-  /v1/inventory/items:
-    get:
-      summary: List inventory items
-      description: |
-        Returns a paginated list of inventory records from the P21 database.
-        The logic for this endpoint lives in `routes/v1/inventory/items.js` and supports
-        optional paging, sorting, and filtering of inactive items.
-      parameters:
-        - in: query
-          name: limit
-          schema:
-            type: integer
-          description: Maximum number of records to return (default `100`).
-        - in: query
-          name: paging
-          schema:
-            type: boolean
-          description: When `true`, enables SQL paging.
-        - in: query
-          name: page
-          schema:
-            type: integer
-          description: Page number when `paging=true`.
-        - in: query
-          name: order
-          schema:
-            type: string
-            enum: [asc, desc]
-          description: Sort order for the `item_id` column.
-        - in: query
-          name: inactive
-          schema:
-            type: boolean
-          description: Include inactive items (`true` or `false`).
-      responses:
-        '200':
-          description: Inventory list with paging metadata
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InventoryListResponse'
-  /v1/inventory/items/{item_id}:
-    get:
-      summary: Get item by id
-      description: |
-        Retrieves a single inventory record. Implemented in
-        `routes/v1/inventory/items.js`.
-      parameters:
-        - in: path
-          name: item_id
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Item details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ItemDetail'
-        '404':
-          description: Item not found
-  /v1/sales/order:
+  # --- keep your existing paths here ---
+  /v1/sales/orders:
     post:
-      summary: Create sales orders in TMP_SRX tables
-      description: |
-        Accepts one or more sales orders, assigns a new `Import_Set_No` to each,
-        and inserts the header and line rows into the `TMP_SRX_Header` and
-        `TMP_SRX_Line` tables within a single SQL Server transaction. Implemented
-        in `routes/v1/sales/order.js`.
+      tags: [Sales Orders]
+      summary: Create Sales Order(s)
+      description: Creates one or more sales orders by inserting header and line records.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SalesOrderUpsertRequest'
+              oneOf:
+                - $ref: '#/components/schemas/SalesOrder'
+                - type: object
+                  properties:
+                    orders:
+                      type: array
+                      minItems: 1
+                      items:
+                        $ref: '#/components/schemas/SalesOrder'
+                  required: [orders]
+            examples:
+              singleOrderMinimal:
+                summary: Single order with only mandatory fields
+                value:
+                  header:
+                    customerId: CUST-1001
+                    warehouse: MAIN
+                    approved: "Y"
+                  lines:
+                    - itemId: SKU-ABC-123
+                      quantity: 5
+              batchFull:
+                summary: Batch insert with complete header/lines
+                value:
+                  orders:
+                    - header:
+                        customerId: CUST-1001
+                        poNumber: PO-98765
+                        warehouse: MAIN
+                        approved: "Y"
+                        quote: "N"
+                        applyBuilderAllowanceFlag: "N"
+                        willCall: "N"
+                        orderDate: "2025-10-16"
+                        # ... include any other non-derived header fields you accept ...
+                      lines:
+                        - itemId: SKU-ABC-123
+                          uom: EA
+                          quantity: 5
+                          price: 10.5
+                          taxItem: "N"
+                          okToInterchange: "N"
+                          scheduled: "N"
+                          manualPriceOverride: "N"
+                          commissionCostEdited: "N"
+                          otherCostEdited: "N"
+                          captureUsage: "N"
+                        - itemId: SKU-XYZ-789
+                          uom: EA
+                          quantity: 2
+                          price: 25
+                          taxItem: "Y"
+                          okToInterchange: "N"
+                          scheduled: "N"
+                          manualPriceOverride: "N"
+                          commissionCostEdited: "N"
+                          otherCostEdited: "N"
+                          captureUsage: "N"
       responses:
         '201':
-          description: Orders were stored and the generated import set numbers returned
+          description: Sales order(s) created successfully.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SalesOrderUpsertResponse'
-        '400':
-          description: Request payload failed validation
-        '500':
-          description: Unexpected error while inserting order records
-
-  /v1/sales/order:
-    post:
-      summary: Create sales orders in TMP_SRX tables
-      description: |
-        Accepts one or more sales orders, assigns a new `Import_Set_No` to each,
-        and inserts the header and line rows into the `TMP_SRX_Header` and
-        `TMP_SRX_Line` tables within a single SQL Server transaction. Implemented
-        in `routes/v1/sales/order.js`.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SalesOrderUpsertRequest'
-      responses:
-        '201':
-          description: Orders were stored and the generated import set numbers returned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SalesOrderUpsertResponse'
-        '400':
-          description: Request payload failed validation
-        '500':
-          description: Unexpected error while inserting order records
+                type: object
+                required: [message, orders]
+                properties:
+                  message: { type: string }
+                  orders:
+                    type: array
+                    items:
+                      type: object
+                      required: [importSetNo, linesInserted]
+                      properties:
+                        importSetNo:   { type: string }
+                        linesInserted: { type: integer }
+              examples:
+                created:
+                  summary: Created response
+                  value:
+                    message: Sales orders saved
+                    orders:
+                      - importSetNo: "12345"
+                        linesInserted: 2
+        '400': { description: Validation error (missing required fields or empty lines). }
+        '401': { description: Unauthorized. }
+        '500': { description: Server error. }
 
 components:
+  # --- keep your existing components here ---
   schemas:
-    InventorySummary:
-      type: object
-      properties:
-        item_id:
-          type: string
-        item_desc:
-          type: string
-    InventoryListResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/InventorySummary'
-        totalCount:
-          type: integer
-        page:
-          type: integer
-        totalPages:
-          type: integer
-    SupplierTerms:
-      type: object
-      properties:
-        id:
-          type: string
-          nullable: true
-        description:
-          type: string
-          nullable: true
-        discountPercent:
-          type: number
-          nullable: true
-        discountDays:
-          type: integer
-          nullable: true
-        netDays:
-          type: integer
-          nullable: true
-    Supplier:
-      type: object
-      properties:
-        erpSourceId:
-          type: string
-          nullable: true
-        externalSystemId:
-          type: string
-          nullable: true
-        isActive:
-          type: boolean
-        companyId:
-          type: string
-          nullable: true
-        currencyCode:
-          type: string
-          nullable: true
-        name:
-          type: string
-          nullable: true
-        paymentTerm:
-          type: string
-          nullable: true
-        supplierId:
-          type: string
-          nullable: true
-        ledgerDimension1:
-          type: string
-          nullable: true
-        taxDimension1:
-          type: string
-          nullable: true
-        clearance1Dimension1:
-          type: string
-          nullable: true
-        taxIndicator1:
-          type: string
-          nullable: true
-        taxIndicator2:
-          type: string
-          nullable: true
-        streetAddress:
-          type: string
-          nullable: true
-        city:
-          type: string
-          nullable: true
-        zip:
-          type: string
-          nullable: true
-        country:
-          type: string
-          nullable: true
-        telephone:
-          type: string
-          nullable: true
-        fax:
-          type: string
-          nullable: true
-        homepage:
-          type: string
-          nullable: true
+    # keep any existing schemas untouched; the following are additive
     SalesOrderHeader:
       type: object
-      required:
-        - customerId
-        - companyId
-        - salesLocationId
-        - approved
-        - shipToId
-        - contractNumber
+      description: Sales Order header (mapped to OE_HDR).
       properties:
+        # Populate from your order.js/DB mapping; examples included for clarity
         customerId:
           type: string
-          description: P21 customer identifier
-        customerName:
+          description: "DB column: CUSTOMER_ID Mandatory."
+        poNumber:
           type: string
-        companyId:
+          description: "DB column: PO_NUMBER"
+        warehouse:
           type: string
-          description: Owning company identifier
-        salesLocationId:
-          type: string
-        customerPoNumber:
-          type: string
-        contactId:
-          type: string
-        contactName:
-          type: string
-        taker:
-          type: string
-        jobName:
-          type: string
-        orderDate:
-          type: string
-          description: Order date in `YYYYMMDD` format
-        requestedDate:
-          type: string
-          description: Requested ship date in `YYYYMMDD` format
-        quote:
-          type: string
+          description: "DB column: WHSE Mandatory."
         approved:
           type: string
-          description: Approval flag (e.g. `Y` or `N`)
-        shipToId:
+          description: "DB column: APPROVED Flag Y/N Mandatory."
+        quote:
           type: string
-          description: Ship-to identifier
-        shipToName:
-          type: string
-        shipToAddress1:
-          type: string
-        shipToAddress2:
-          type: string
-        shipToCity:
-          type: string
-        shipToState:
-          type: string
-        shipToZipCode:
-          type: string
-        shipToCountry:
-          type: string
-        sourceLocationId:
-          type: string
-        carrierId:
-          type: string
-        carrierName:
-          type: string
-        route:
-          type: string
-        packingBasis:
-          type: string
-        deliveryInstructions:
-          type: string
-        terms:
-          type: string
-        termsDesc:
-          type: string
-        willCall:
-          type: string
-        contractNumber:
-          type: string
-          description: Contract identifier used to allocate inventory
-        shipToEmailAddress:
-          type: string
-        shipToPhone:
-          type: string
-        currencyId:
-          type: string
+          description: "DB column: QUOTE Flag Y/N"
         applyBuilderAllowanceFlag:
           type: string
-        quoteExpirationDate:
-          type: string
-        promiseDate:
-          type: string
-          description: Promise date in `YYYYMMDD` format
-    SalesOrderLine:
-      type: object
-      required:
-        - lineNo
-        - itemId
-        - unitQuantity
-        - unitOfMeasure
-      properties:
-        lineNo:
-          type: string
-          description: Line number within the order
-        itemId:
-          type: string
-          description: P21 item identifier
-        unitQuantity:
-          type: string
-          description: Quantity ordered for the line
-        unitOfMeasure:
-          type: string
-          description: Unit of measure for the quantity
-        unitPrice:
-          type: string
-        extendedDescription:
-          type: string
-        sourceLocationId:
-          type: string
-        shipLocationId:
-          type: string
-        productGroupId:
-          type: string
-        supplierId:
-          type: string
-        supplierName:
-          type: string
-        requiredDate:
-          type: string
-        expediteDate:
-          type: string
+          description: "DB column: APPLY_BUILDER_ALLOWANCE Flag Y/N"
         willCall:
           type: string
+          description: "DB column: WILL_CALL Flag Y/N"
+        orderDate:
+          type: string
+          format: date
+          description: "DB column: ORDER_DATE"
+        # ... add the rest of your header fields, each with DB column and flags ...
+      required:
+        # Include only mandatory non-derived fields
+        - customerId
+        - warehouse
+        - approved
+
+    SalesOrderLine:
+      type: object
+      description: Sales Order line (mapped to OE_Line).
+      properties:
+        itemId:
+          type: string
+          description: "DB column: ITEM_ID Mandatory."
+        uom:
+          type: string
+          description: "DB column: UOM"
+        quantity:
+          type: number
+          format: double
+          description: "DB column: QTY Mandatory."
+        price:
+          type: number
+          format: double
+          description: "DB column: PRICE"
         taxItem:
           type: string
+          description: "DB column: TAX_ITEM Flag Y/N"
         okToInterchange:
           type: string
-        pricingUnit:
-          type: string
-        commissionCost:
-          type: string
-        otherCost:
-          type: string
-        poCost:
-          type: string
-        disposition:
-          type: string
+          description: "DB column: OK_TO_INTERCHANGE Flag Y/N"
         scheduled:
           type: string
+          description: "DB column: SCHEDULED Flag Y/N"
         manualPriceOverride:
           type: string
+          description: "DB column: MANUAL_PRICE_OVERRIDE Flag Y/N"
         commissionCostEdited:
           type: string
+          description: "DB column: COMMISSION_COST_EDITED Flag Y/N"
         otherCostEdited:
           type: string
+          description: "DB column: OTHER_COST_EDITED Flag Y/N"
         captureUsage:
           type: string
-        tagAndHoldClassId:
-          type: string
-        contractBinId:
-          type: string
-        contractNo:
-          type: string
-        allocationQty:
-          type: string
-        promiseDate:
-          type: string
-    SalesOrderPayload:
-      type: object
+          description: "DB column: CAPTURE_USAGE Flag Y/N"
+        # ... add any remaining line fields you accept ...
       required:
-        - header
-        - lines
+        - itemId
+        - quantity
+
+    SalesOrder:
+      type: object
+      description: Sales Order payload with header and lines.
       properties:
         header:
           $ref: '#/components/schemas/SalesOrderHeader'
@@ -494,286 +199,4 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SalesOrderLine'
-    SalesOrderOrdersWrapper:
-      type: object
-      required:
-        - orders
-      properties:
-        orders:
-          type: array
-          items:
-            $ref: '#/components/schemas/SalesOrderPayload'
-    SalesOrderUpsertRequest:
-      description: Accepts either a single `{ header, lines }` object or an array under `orders`
-      oneOf:
-        - $ref: '#/components/schemas/SalesOrderOrdersWrapper'
-        - $ref: '#/components/schemas/SalesOrderPayload'
-    SalesOrderUpsertResponse:
-      type: object
-      properties:
-        message:
-          type: string
-        orders:
-          type: array
-          description: Per-order summary including the generated `Import_Set_No`
-          items:
-            type: object
-            properties:
-              importSetNo:
-                type: string
-                description: Generated identifier assigned to the order header and lines
-              linesInserted:
-                type: integer
-                description: Count of line records written for the order
-        emailAddress:
-          type: string
-          nullable: true
-        state:
-          type: string
-          nullable: true
-        isProcurable:
-          type: boolean
-        prepayment:
-          type: boolean
-        updatedAt:
-          type: string
-          format: date-time
-          nullable: true
-        terms:
-          $ref: '#/components/schemas/SupplierTerms'
-    SupplierListResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Supplier'
-        page:
-          type: integer
-        limit:
-          type: integer
-        total:
-          type: integer
-        totalPages:
-          type: integer
-        lastPage:
-          type: boolean
-
-    PaymentTermStartDate:
-      type: object
-      properties:
-        type:
-          type: string
-          enum: [InvoiceDate]
-        numberOfMonths:
-          type: integer
-    PaymentTermLine:
-      type: object
-      properties:
-        cashDiscountPercentage:
-          type: number
-        endOfMonth:
-          type: boolean
-        numberOfDays:
-          type: integer
-        numberOfMonths:
-          type: integer
-    PaymentTerm:
-      type: object
-      properties:
-        erpSourceId:
-          type: string
-        externalSystemId:
-          type: string
-        isActive:
-          type: boolean
-        lines:
-          type: array
-          items:
-            $ref: '#/components/schemas/PaymentTermLine'
-        companyId:
-          type: string
-          nullable: true
-        paymentTermId:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        startDate:
-          $ref: '#/components/schemas/PaymentTermStartDate'
-          nullable: true
-        updatedAt:
-          type: string
-          format: date-time
-          nullable: true
-    PaymentTermListResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/PaymentTerm'
-        page:
-          type: integer
-        pageSize:
-          type: integer
-        total:
-          type: integer
-        totalPages:
-          type: integer
-
-    ItemDetail:
-      type: object
-      properties:
-        item_id:
-          type: string
-        inv_mast_uid:
-          type: integer
-        item_desc:
-          type: string
-        delete_flag:
-          type: string
-        weight:
-          type: number
-        net_weight:
-          type: number
-        inactive:
-          type: string
-        default_sales_discount_group:
-          type: string
-        extended_desc:
-          type: string
-        keywords:
-          type: string
-        base_unit:
-          type: string
-        commodity_code:
-          type: string
-        length:
-          type: number
-        width:
-          type: number
-        height:
-          type: number
-    OrderExportResponse:
-      type: object
-      properties:
-        message:
-          type: string
-        files:
-          type: object
-          properties:
-            headerFile:
-              type: string
-            linesFile:
-              type: string
-        importSetNumber:
-          type: string
-    OrderReceivedResponse:
-      type: object
-      properties:
-        message:
-          type: string
-        id:
-          type: integer
-    OrderHeader:
-      type: object
-      properties:
-        order_no:
-          type: integer
-        customer_id:
-          type: string
-        order_date:
-          type: string
-          format: date-time
-        ship2_name:
-          type: string
-        ship2_add1:
-          type: string
-        po_no:
-          type: string
-        job_price_hdr_uid:
-          type: integer
-        delete_flag:
-          type: string
-        completed:
-          type: string
-        company_id:
-          type: string
-        date_created:
-          type: string
-          format: date-time
-        po_no_append:
-          type: string
-        location_id:
-          type: string
-        carrier_id:
-          type: string
-        address_id:
-          type: string
-        taker:
-          type: string
-        approved:
-          type: string
-        cancel_flag:
-          type: string
-        promise_date:
-          type: string
-          format: date-time
-        ups_code:
-          type: string
-        expedite_date:
-          type: string
-          format: date-time
-        validation_status:
-          type: string
-        status:
-          type: string
-        order_ref:
-          type: string
-    OrderLine:
-      type: object
-      properties:
-        order_no:
-          type: integer
-        qty_ordered:
-          type: number
-        delete_flag:
-          type: string
-        line_no:
-          type: integer
-        complete:
-          type: string
-        disposition:
-          type: string
-        qty_allocated:
-          type: number
-        qty_on_pick_tickets:
-          type: number
-        qty_invoiced:
-          type: number
-        required_date:
-          type: string
-          format: date-time
-        unit_size:
-          type: number
-        unit_quantity:
-          type: number
-        customer_part_number:
-          type: string
-        cancel_flag:
-          type: string
-        qty_canceled:
-          type: number
-        status:
-          type: string
-    SalesOrderResponse:
-      type: object
-      properties:
-        header:
-          $ref: '#/components/schemas/OrderHeader'
-        lines:
-          type: array
-          items:
-            $ref: '#/components/schemas/OrderLine'
+      required: [header, lines]

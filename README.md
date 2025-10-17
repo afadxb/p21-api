@@ -18,6 +18,21 @@ This repository contains a minimal Express server exposing a handful of routes u
    
 4. Access the Swagger UI at `http://localhost:<PORT>/docs` for interactive API documentation.
 
+### TMP_OE export job
+
+When the Express server starts it also launches a background job that scans the
+`TMP_OE_Header` and `TMP_OE_Line` staging tables every 30 minutes. Any import
+sets whose `TMP_OE_Header.Exported` flag is not `Y` are written to the
+`p21-api/exports/` directory as fixed-width text files named
+`SOH<Import_Set_No>.txt` for header records and `SOL<Import_Set_No>.txt` for line
+records. After the files are written, the job sets the `Exported` flag to `Y` so
+they are not exported again.
+
+Use the following optional environment variables to customise the job:
+
+- `TMP_OE_EXPORT_INTERVAL_MINUTES` – override the 30 minute cadence.
+- `TMP_OE_EXPORT_DIR` – change the output directory (default `exports`).
+
 ### Swagger/OpenAPI URL
 
 When running locally with the default port, open `http://localhost:3000/docs` in your browser to view the interactive documentation. This UI is generated from the repository's `p21-api/openapi.yaml` specification file.

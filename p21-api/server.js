@@ -17,6 +17,12 @@ app.use('/v1/ap/suppliers', require('./routes/v1/ap/suppliers'));
 app.use('/v1/ap/paymentterms', require('./routes/v1/ap/paymentterms'));
 app.use('/v1/sales/order', require('./routes/v1/sales/order'));
 
+// Background jobs
+const { startExportJob } = require('./jobs/exportTmpOrders');
+startExportJob().catch((err) => {
+  console.error('Failed to start TMP_OE export job', err);
+});
+
 
 // DEBUG fallback route (handles unmatched routes safely)
 app.all('*', (req, res) => {

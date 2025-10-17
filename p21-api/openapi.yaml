@@ -433,7 +433,7 @@ components:
         contractNumber:
           type: string
           maxLength: 255
-          description: "DB column: Contract_Number. Required."
+          description: "DB column: Contract_Number. Required unless unitPrice is provided on every line item."
         invoiceBatchNumber:
           type: string
           maxLength: 255
@@ -472,7 +472,6 @@ components:
         - companyId
         - salesLocationId
         - shipToId
-        - contractNumber
 
     SalesOrderLine:
       type: object
@@ -497,7 +496,7 @@ components:
         unitPrice:
           type: string
           maxLength: 255
-          description: "DB column: Unit_Price."
+          description: "DB column: Unit_Price. Required when the order header omits contractNumber."
         extendedDescription:
           type: string
           maxLength: 255

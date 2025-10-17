@@ -96,22 +96,18 @@ function formatPrice(raw) {
   return trimmed || '0';
 }
 
-function padField(value, { width, align = 'left', zeroPadLength }) {
+function prepareField(value, { width, zeroPadLength }) {
   let output = value === null || value === undefined ? '' : String(value).trim();
 
   if (zeroPadLength && output) {
     output = output.padStart(zeroPadLength, '0');
   }
 
-  if (output.length > width) {
+  if (width && output.length > width) {
     output = output.slice(0, width);
   }
 
-  if (align === 'right') {
-    return output.padStart(width, ' ');
-  }
-
-  return output.padEnd(width, ' ');
+  return output;
 }
 
 function formatRecord(record, layout) {
@@ -119,9 +115,9 @@ function formatRecord(record, layout) {
     .map((field) => {
       const rawValue = record[field.key];
       const value = field.formatter ? field.formatter(rawValue, record) : rawValue;
-      return padField(value, field);
+      return prepareField(value, field);
     })
-    .join('');
+    .join('\t');
 }
 
 async function fetchPendingImportSets(pool) {
@@ -263,6 +259,6 @@ module.exports = {
     formatDate,
     formatQuantity,
     formatPrice,
-    padField
+    prepareField
   }
 };

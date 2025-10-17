@@ -34,11 +34,11 @@ paths:
                 summary: Single order with only mandatory fields
                 value:
                   header:
-                    customerId: 1001
-                    companyId: ACU
+                    customerId: 123456
+                    companyId: ACC
                     salesLocationId: 1
-                    shipToId: 2001
-                    contractNumber: CT-12345
+                    shipToId: 123001
+                    contractNumber: 27
                   lines:
                     - lineNo: 1
                       itemId: SKU-ABC-123
@@ -272,201 +272,201 @@ components:
         customerId:
           type: number
           format: double
-          description: "DB column: Customer_ID. Required."
+          description: "Customer_ID. Required."
         customerName:
           type: string
           maxLength: 50
-          description: "DB column: Customer_Name."
+          description: "Customer_Name."
         companyId:
           type: string
           maxLength: 8
-          description: "DB column: Company_ID. Required."
+          description: "Company_ID. Required."
         salesLocationId:
           type: number
           format: double
-          description: "DB column: Sales_Location_ID. Required."
+          description: "Sales_Location_ID. Required."
         customerPoNumber:
           type: string
           maxLength: 50
-          description: "DB column: Customer_PO_Number."
+          description: "Customer_PO_Number."
         contactId:
           type: string
           maxLength: 16
-          description: "DB column: Contact_ID."
+          description: "Contact_ID."
         contactName:
           type: string
           maxLength: 50
-          description: "DB column: Contact_Name."
+          description: "Contact_Name."
         taker:
           type: string
           maxLength: 30
-          description: "DB column: Taker."
+          description: "Taker."
         jobName:
           type: string
           maxLength: 40
-          description: "DB column: Job_Name."
+          description: "Job_Name."
         orderDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "DB column: Order_Date formatted as yyyyMMdd."
+          description: "Order_Date formatted as yyyyMMdd."
         requestedDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "DB column: Requested_Date formatted as yyyyMMdd."
+          description: "Requested_Date formatted as yyyyMMdd."
         quote:
           type: string
           maxLength: 1
-          description: "DB column: Quote flag (Y/N)."
+          description: "Quote flag (Y/N)."
         approved:
           type: string
           maxLength: 1
           default: "N"
-          description: "DB column: Approved flag (Y/N). Defaults to \"N\" when omitted."
+          description: "Approved flag (Y/N). Defaults to \"N\" when omitted."
         shipToId:
           type: number
           format: double
-          description: "DB column: Ship_To_ID. Required."
+          description: "Ship_To_ID. Required."
         shipToName:
           type: string
           maxLength: 50
-          description: "DB column: Ship_To_Name."
+          description: "Ship_To_Name."
         shipToAddress1:
           type: string
           maxLength: 50
-          description: "DB column: Ship_To_Address_1."
+          description: "Ship_To_Address_1."
         shipToAddress2:
           type: string
           maxLength: 50
-          description: "DB column: Ship_To_Address_2."
+          description: "Ship_To_Address_2."
         shipToCity:
           type: string
           maxLength: 50
-          description: "DB column: Ship_To_City."
+          description: "Ship_To_City."
         shipToState:
           type: string
           maxLength: 50
-          description: "DB column: Ship_To_State."
+          description: "Ship_To_State."
         shipToZipCode:
           type: string
           maxLength: 10
-          description: "DB column: Ship_To_Zip_Code."
+          description: "Ship_To_Zip_Code."
         shipToCountry:
           type: string
           maxLength: 50
-          description: "DB column: Ship_To_Country."
+          description: "Ship_To_Country."
         sourceLocationId:
           type: number
           format: double
-          description: "DB column: Source_Location_ID."
+          description: "Source_Location_ID."
         carrierId:
           type: number
           format: double
-          description: "DB column: Carrier_ID."
+          description: "Carrier_ID."
         carrierName:
           type: string
           maxLength: 50
-          description: "DB column: Carrier_Name."
+          description: "Carrier_Name."
         route:
           type: string
           maxLength: 255
-          description: "DB column: Route."
+          description: "Route."
         packingBasis:
           type: string
           maxLength: 16
-          description: "DB column: Packing_Basis."
+          description: "Packing_Basis."
         deliveryInstructions:
           type: string
           maxLength: 255
-          description: "DB column: Delivery_Instructions."
+          description: "Delivery_Instructions."
         terms:
           type: string
           maxLength: 2
-          description: "DB column: Terms."
+          description: "Terms."
         termsDesc:
           type: string
           maxLength: 20
-          description: "DB column: Terms_Desc."
+          description: "Terms_Desc."
         willCall:
           type: string
           maxLength: 1
-          description: "DB column: Will_Call flag (Y/N)."
+          description: "Will_Call flag (Y/N)."
         class1:
           type: string
           maxLength: 8
-          description: "DB column: Class_1."
+          description: "Class_1."
         class2:
           type: string
           maxLength: 8
-          description: "DB column: Class_2."
+          description: "Class_2."
         class3:
           type: string
           maxLength: 8
-          description: "DB column: Class_3."
+          description: "Class_3."
         class4:
           type: string
           maxLength: 8
-          description: "DB column: Class_4."
+          description: "Class_4."
         class5:
           type: string
           maxLength: 8
-          description: "DB column: Class_5."
+          description: "Class_5."
         rmaFlag:
           type: string
           maxLength: 1
-          description: "DB column: RMA_Flag."
+          description: "RMA_Flag."
         freightCode:
           type: string
           maxLength: 30
-          description: "DB column: Freight_Code."
+          description: "Freight_Code."
         thirdPartyBillingFlagDesc:
           type: string
           maxLength: 40
-          description: "DB column: Third_Party_Billing_Flag_Desc."
+          description: "Third_Party_Billing_Flag_Desc."
         captureUsageDefault:
           type: string
           maxLength: 1
-          description: "DB column: Capture_Usage_Default flag (Y/N)."
+          description: "Capture_Usage_Default flag (Y/N)."
         allocate:
           type: string
           maxLength: 1
-          description: "DB column: Allocate flag (Y/N)."
+          description: "Allocate flag (Y/N)."
         contractNumber:
           type: string
           maxLength: 255
-          description: "DB column: Contract_Number. Required unless unitPrice is provided on every line item."
+          description: "Contract_Number. Required unless unitPrice is provided on every line item."
         invoiceBatchNumber:
           type: string
           maxLength: 255
-          description: "DB column: Invoice_Batch_Number."
+          description: "Invoice_Batch_Number."
         shipToEmailAddress:
           type: string
           maxLength: 255
           format: email
-          description: "DB column: Ship_To_Email_Address."
+          description: "Ship_To_Email_Address."
         setInvoiceExchangeRateSourceDesc:
           type: string
           maxLength: 40
-          description: "DB column: Set_Invoice_Exchange_Rate_Source_Desc."
+          description: "Set_Invoice_Exchange_Rate_Source_Desc."
         shipToPhone:
           type: string
           maxLength: 20
-          description: "DB column: Ship_To_Phone."
+          description: "Ship_To_Phone."
         currencyId:
           type: string
           maxLength: 255
-          description: "DB column: Currency_ID."
+          description: "Currency_ID."
         applyBuilderAllowanceFlag:
           type: string
           maxLength: 1
-          description: "DB column: Apply_Builder_Allowance_Flag (Y/N)."
+          description: "Apply_Builder_Allowance_Flag (Y/N)."
         quoteExpirationDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "DB column: Quote_Expiration_Date formatted as yyyyMMdd."
+          description: "Quote_Expiration_Date formatted as yyyyMMdd."
         promiseDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "DB column: Promise_Date formatted as yyyyMMdd."
+          description: "Promise_Date formatted as yyyyMMdd."
       required:
         - customerId
         - companyId
@@ -480,127 +480,127 @@ components:
         lineNo:
           type: number
           format: double
-          description: "DB column: Line_No. Required."
+          description: "Line_No. Required."
         itemId:
           type: string
           maxLength: 40
-          description: "DB column: Item_ID. Required."
+          description: "Item_ID. Required."
         unitQuantity:
           type: number
           format: double
-          description: "DB column: Unit_Quantity. Required."
+          description: "Unit_Quantity. Required."
         unitOfMeasure:
           type: string
           maxLength: 8
-          description: "DB column: Unit_of_Measure. Required."
+          description: "Unit_of_Measure. Required."
         unitPrice:
           type: string
           maxLength: 255
-          description: "DB column: Unit_Price. Required when the order header omits contractNumber."
+          description: "Unit_Price. Required when the order header omits contractNumber."
         extendedDescription:
           type: string
           maxLength: 255
-          description: "DB column: Extended_Description."
+          description: "Extended_Description."
         sourceLocationId:
           type: number
           format: double
-          description: "DB column: Source_Location_ID."
+          description: "Source_Location_ID."
         shipLocationId:
           type: number
           format: double
-          description: "DB column: Ship_Location_ID."
+          description: "Ship_Location_ID."
         productGroupId:
           type: string
           maxLength: 8
-          description: "DB column: Product_Group_ID."
+          description: "Product_Group_ID."
         supplierId:
           type: number
           format: double
-          description: "DB column: Supplier_ID."
+          description: "Supplier_ID."
         supplierName:
           type: string
           maxLength: 50
-          description: "DB column: Supplier_Name."
+          description: "Supplier_Name."
         requiredDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "DB column: Required_Date formatted as yyyyMMdd."
+          description: "Required_Date formatted as yyyyMMdd."
         expediteDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "DB column: Expedite_Date formatted as yyyyMMdd."
+          description: "Expedite_Date formatted as yyyyMMdd."
         willCall:
           type: string
           maxLength: 1
-          description: "DB column: Will_Call flag (Y/N)."
+          description: "Will_Call flag (Y/N)."
         taxItem:
           type: string
           maxLength: 1
-          description: "DB column: Tax_Item flag (Y/N)."
+          description: "Tax_Item flag (Y/N)."
         okToInterchange:
           type: string
           maxLength: 1
-          description: "DB column: OK_to_Interchange flag (Y/N)."
+          description: "OK_to_Interchange flag (Y/N)."
         pricingUnit:
           type: string
           maxLength: 8
-          description: "DB column: Pricing_Unit."
+          description: "Pricing_Unit."
         commissionCost:
           type: string
           maxLength: 255
-          description: "DB column: Commission_Cost."
+          description: "Commission_Cost."
         otherCost:
           type: string
           maxLength: 255
-          description: "DB column: Other_Cost."
+          description: "Other_Cost."
         poCost:
           type: string
           maxLength: 255
-          description: "DB column: PO_Cost."
+          description: "PO_Cost."
         disposition:
           type: string
           maxLength: 1
-          description: "DB column: Disposition."
+          description: "Disposition."
         scheduled:
           type: string
           maxLength: 1
-          description: "DB column: Scheduled flag (Y/N)."
+          description: "Scheduled flag (Y/N)."
         manualPriceOverride:
           type: string
           maxLength: 1
-          description: "DB column: Manual_Price_Override flag (Y/N)."
+          description: "Manual_Price_Override flag (Y/N)."
         commissionCostEdited:
           type: string
           maxLength: 1
-          description: "DB column: Commission_Cost_Edited flag (Y/N)."
+          description: "Commission_Cost_Edited flag (Y/N)."
         otherCostEdited:
           type: string
           maxLength: 1
-          description: "DB column: Other_Cost_Edited flag (Y/N)."
+          description: "Other_Cost_Edited flag (Y/N)."
         captureUsage:
           type: string
           maxLength: 1
-          description: "DB column: Capture_Usage flag (Y/N)."
+          description: "Capture_Usage flag (Y/N)."
         tagAndHoldClassId:
           type: string
           maxLength: 8
-          description: "DB column: Tag_and_Hold_Class_ID."
+          description: "Tag_and_Hold_Class_ID."
         contractBinId:
           type: string
           maxLength: 8
-          description: "DB column: Contract_Bin_ID."
+          description: "Contract_Bin_ID."
         contractNo:
           type: string
           maxLength: 8
-          description: "DB column: Contract_No."
+          description: "Contract_No."
         allocationQty:
           type: number
           format: double
-          description: "DB column: Allocation_Qty."
+          description: "Allocation_Qty."
         promiseDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "DB column: Promise_Date formatted as yyyyMMdd."
+          description: "Promise_Date formatted as yyyyMMdd."
       required:
         - lineNo
         - itemId

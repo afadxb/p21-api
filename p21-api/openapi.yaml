@@ -287,201 +287,316 @@ components:
         customerId:
           type: number
           format: double
-          description: "Customer_ID. Required."
+          description: |
+            Customer_ID. Required when `customerName` is omitted.
+            Enter the customer for the order or quote. Customers are defined in Customers Maintenance
+            and represent the people or businesses purchasing goods and services from your company.
         customerName:
           type: string
           maxLength: 50
-          description: "Customer_Name."
+          description: |
+            Customer_Name. Required when `customerId` is omitted.
+            Provides a human-readable customer identifier when codes or numbers are used for `customerId`.
         companyId:
           type: string
           maxLength: 8
-          description: "Company_ID. Required."
+          description: |
+            Company_ID. Required.
+            Identifies the company that the customer is associated with. Every order or quote must tie the
+            customer to a company.
         salesLocationId:
           type: number
           format: double
-          description: "Sales_Location_ID. Required."
+          description: |
+            Sales_Location_ID. Required.
+            Location that receives credit for the sale. Defaults to the sales location configured for the
+            user (User Maintenance), then Company Maintenance if not provided. If no default can be found you
+            must supply a value.
         customerPoNumber:
           type: string
           maxLength: 50
-          description: "Customer_PO_Number."
+          description: |
+            Customer_PO_Number. Secondary identifier supplied by the customer for an order or invoice.
+            Helps customers match documents to their internal purchase orders and is often the number they know best.
         contactId:
           type: string
           maxLength: 16
-          description: "Contact_ID."
+          description: |
+            Contact_ID. Required when `contactName` is omitted.
+            Identifies the customer contact for the order or quote. A contact is someone you work with or have
+            business dealings with and is defined in Contact Maintenance.
         contactName:
           type: string
           maxLength: 50
-          description: "Contact_Name."
+          description: |
+            Contact_Name. Required when `contactId` is omitted.
+            Human-readable name to recognize the customer contact when codes or numbers are used.
         taker:
           type: string
           maxLength: 30
-          description: "Taker."
+          description: |
+            Taker. Login ID of the employee who took the order (for example, `JEN_FRANK`). Order takers
+            who can create POs must be set up as Buyers so the system can map their user ID to a Buyer ID.
         jobName:
           type: string
           maxLength: 40
-          description: "Job_Name."
+          description: |
+            Job_Name. Name of the job associated with the order or quote. If Enable Job Control Functionality
+            is active, the value must match an existing job control ID for the customer or ship to; otherwise
+            it is free-form text.
         orderDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "Order_Date formatted as yyyyMMdd."
+          description: |
+            Order_Date formatted as yyyyMMdd. Defaults to the import date when not supplied.
         requestedDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "Requested_Date formatted as yyyyMMdd."
+          description: |
+            Requested_Date formatted as yyyyMMdd. Represents when the customer needs the order filled.
+            Defaults to `orderDate` plus the customer's Acceptable Wait Time when omitted.
         quote:
           type: string
           maxLength: 1
-          description: "Quote flag (Y/N)."
+          description: |
+            Quote flag (Y/N). Enter `Y` when importing a quote (no allocations are created); `N` for a
+            regular order.
         approved:
           type: string
           maxLength: 1
           default: "N"
-          description: "Approved flag (Y/N). Defaults to \"N\" when omitted."
+          description: |
+            Approved flag (Y/N). Pick tickets cannot be printed until the order is approved. Behavior depends
+            on System Settings > System Setup > Approvals. When approvals are disabled, all imported records
+            must be marked `Y`. When approvals are enabled, imported orders default to `Y` or `N` according to
+            the "ON - Default to YES/NO" configuration.
         shipToId:
           type: number
           format: double
-          description: "Ship_To_ID. Required."
+          description: |
+            Ship_To_ID. Required.
+            Identifies the ship-to address for the customer. Ship-to records must have defined sales
+            representatives.
         shipToName:
           type: string
           maxLength: 50
-          description: "Ship_To_Name."
+          description: |
+            Ship_To_Name. Required when `shipToId` is omitted. Provides a recognizable name for the ship-to
+            location.
         shipToAddress1:
           type: string
           maxLength: 50
-          description: "Ship_To_Address_1."
+          description: |
+            Ship_To_Address_1. First line of the ship-to mailing/delivery address. Defaults from the ship-to
+            record when omitted. The ship-to address can differ from the billing address used for invoices.
         shipToAddress2:
           type: string
           maxLength: 50
-          description: "Ship_To_Address_2."
+          description: |
+            Ship_To_Address_2. Second line of the ship-to address (for example, suite or apartment). Defaults
+            from the ship-to record when `shipToAddress1` is omitted.
         shipToCity:
           type: string
           maxLength: 50
-          description: "Ship_To_City."
+          description: |
+            Ship_To_City. City for the ship-to address. Defaults from the ship-to record when
+            `shipToAddress1` is omitted. May differ from the billing city used for invoices.
         shipToState:
           type: string
           maxLength: 50
-          description: "Ship_To_State."
+          description: |
+            Ship_To_State. State or province for the ship-to address. Defaults from the ship-to record when
+            `shipToAddress1` is omitted. May differ from the billing state used for invoices.
         shipToZipCode:
           type: string
           maxLength: 10
-          description: "Ship_To_Zip_Code."
+          description: |
+            Ship_To_Zip_Code. Postal code for the ship-to address. Defaults from the ship-to record when
+            `shipToAddress1` is omitted. May differ from the billing postal code used for invoices.
         shipToCountry:
           type: string
           maxLength: 50
-          description: "Ship_To_Country."
+          description: |
+            Ship_To_Country. Country for the ship-to address. Defaults from the ship-to record when
+            `shipToAddress1` is omitted. May differ from the billing country used for invoices.
         sourceLocationId:
           type: number
           format: double
-          description: "Source_Location_ID."
+          description: |
+            Source_Location_ID. Location that picks the material to ship. Defaults based on the "Default
+            Source Location to Sales Location" setting, or the ship-to's default source location when not provided.
+            Enables order-based transfers when the pick location differs from the ship location (if allowed in
+            Company Maintenance). For consignment usage (CUO) or replenishment (CRO) orders, defaults from the
+            consignment location tied to the ship-to.
         carrierId:
           type: number
           format: double
-          description: "Carrier_ID."
+          description: |
+            Carrier_ID. Required when `carrierName` is omitted. Identifies the carrier delivering the order.
         carrierName:
           type: string
           maxLength: 50
-          description: "Carrier_Name."
+          description: |
+            Carrier_Name. Required when `carrierId` is omitted. Human-readable name for the carrier delivering
+            the order.
         route:
           type: string
           maxLength: 255
-          description: "Route."
+          description: |
+            Route. Delivery route used by the carrier to deliver the shipment (for example, NORTH or SOUTH) so
+            pick tickets can be grouped by route automatically.
         packingBasis:
           type: string
           maxLength: 16
-          description: "Packing_Basis."
+          description: |
+            Packing_Basis. Determines how partial shipments are handled. Valid options include:
+            - `Partial`: Ship available items immediately; additional pick tickets may be created for pick-and-hold
+              quantities.
+            - `Item Partial`: Ship any complete item plus other partial items when at least one item is complete.
+            - `Order Complete`: Ship only when all items are available; pick tickets wait for the latest required date.
+            - `Hold`: Hold the order until released; prevents new pick tickets and can stage pick-and-hold material
+              until it is ready to ship. Once selected, the option cannot be changed.
+            - `Item Complete`: Ship only items with complete quantities.
+            - `Partial / Order`: Limit the number of partial shipments per order; pick tickets wait for the latest required date.
+            Defaults from the ship-to record when omitted.
         deliveryInstructions:
           type: string
           maxLength: 255
-          description: "Delivery_Instructions."
+          description: |
+            Delivery_Instructions. Free-form guidance for how and when the shipment should be delivered.
         terms:
           type: string
           maxLength: 2
-          description: "Terms."
+          description: |
+            Terms. Unique identifier for the payment terms governing invoice due dates and discounts (for example,
+            Net 30).
         termsDesc:
           type: string
           maxLength: 20
-          description: "Terms_Desc."
+          description: |
+            Terms_Desc. Description or friendly name for the selected payment terms.
         willCall:
           type: string
           maxLength: 1
-          description: "Will_Call flag (Y/N)."
+          description: |
+            Will_Call flag (Y/N). Indicates the customer will pick up the order; taxes use the location where
+            the material is staged. You will notify the customer when the material is ready for pickup.
         class1:
           type: string
           maxLength: 8
-          description: "Class_1."
+          description: |
+            Class_1. User-defined classification field (for example, Mail Order, Walk-In, Sales Call).
         class2:
           type: string
           maxLength: 8
-          description: "Class_2."
+          description: |
+            Class_2. Additional user-defined classification for reporting or grouping.
         class3:
           type: string
           maxLength: 8
-          description: "Class_3."
+          description: |
+            Class_3. Additional user-defined classification for reporting or grouping.
         class4:
           type: string
           maxLength: 8
-          description: "Class_4."
+          description: |
+            Class_4. Additional user-defined classification for reporting or grouping.
         class5:
           type: string
           maxLength: 8
-          description: "Class_5."
+          description: |
+            Class_5. Additional user-defined classification for reporting or grouping. Up to five class IDs can
+            be applied to an order.
         rmaFlag:
           type: string
           maxLength: 1
-          description: "RMA_Flag."
+          description: |
+            RMA_Flag. Set to `Y` to import the record as a customer return. Decide whether the return is a cash
+            refund or merchandise credit when importing.
         freightCode:
           type: string
           maxLength: 30
-          description: "Freight_Code."
+          description: |
+            Freight_Code. Identifies freight charge handling agreements defined in Freight Code Maintenance,
+            including freight fees, tax groups, and revenue accounts for recovered freight.
         thirdPartyBillingFlagDesc:
           type: string
           maxLength: 40
-          description: "Third_Party_Billing_Flag_Desc."
+          description: |
+            Third_Party_Billing_Flag_Desc. Determines how freight charges are billed. Valid options include
+            `Standard`, `Consignee`, and `Third Party` (Clippership prompts for the carrier's account).
         captureUsageDefault:
           type: string
           maxLength: 1
-          description: "Capture_Usage_Default flag (Y/N)."
+          description: |
+            Capture_Usage_Default flag (Y/N). When `Y`, the order contributes to item usage calculations based on
+            the system's Capture Use At setting.
         allocate:
           type: string
           maxLength: 1
-          description: "Allocate flag (Y/N)."
+          description: |
+            Allocate flag (Y/N). When `Y`, inventory is allocated automatically for the imported order. Defaults
+            from the "Allocate to Imported Sales Orders" system setting.
         contractNumber:
           type: string
           maxLength: 255
-          description: "Contract_Number. Required unless unitPrice is provided on every line item."
+          description: |
+            Contract_Number. Required unless `unitPrice` is provided on every line item. Mandatory for
+            consignment usage (CUO) or consignment replenishment (CRO) orders; item quantities must be available
+            at the consignment location when customer settings restrict non-contract items. The source location
+            defaults from the consignment location tied to the ship-to.
         invoiceBatchNumber:
           type: string
           maxLength: 255
-          description: "Invoice_Batch_Number."
+          description: |
+            Invoice_Batch_Number. Four-digit batch identifier for grouping invoices (for example, separate print,
+            fax, or email batches). Defaults from the customer record when omitted.
         shipToEmailAddress:
           type: string
           maxLength: 255
           format: email
-          description: "Ship_To_Email_Address."
+          description: |
+            Ship_To_Email_Address. Opens a new message for the address and is used for email notifications (Alert
+            Maintenance) as well as the sender address when SMTP mail is enabled.
         setInvoiceExchangeRateSourceDesc:
           type: string
           maxLength: 40
-          description: "Set_Invoice_Exchange_Rate_Source_Desc."
+          description: |
+            Set_Invoice_Exchange_Rate_Source_Desc. Determines which exchange rate is applied to invoices when
+            multiple currencies are enabled. Valid options are `Order` (default) and `Invoice`. Required for foreign
+            currency orders.
         shipToPhone:
           type: string
           maxLength: 20
-          description: "Ship_To_Phone."
+          description: |
+            Ship_To_Phone. Phone number for the ship-to location (include area codes and formatting as needed,
+            such as `1-908-786-2391` or `(908) 786-2391`).
         currencyId:
           type: string
           maxLength: 255
-          description: "Currency_ID."
+          description: |
+            Currency_ID. Currency of the order (for example, `EURO` for European transactions).
         applyBuilderAllowanceFlag:
           type: string
           maxLength: 1
-          description: "Apply_Builder_Allowance_Flag (Y/N)."
+          description: |
+            Apply_Builder_Allowance_Flag (Y/N). When `Y`, applies the order total toward the builder's allowance;
+            ignored if another open order already counts against the allowance for the job. The invoice goes to the
+            customer in the amount covered by the allowance.
         quoteExpirationDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "Quote_Expiration_Date formatted as yyyyMMdd."
+          description: |
+            Quote_Expiration_Date formatted as yyyyMMdd. Defaults to quote entry date plus the customer's "Number of
+            Days Before Quotes Expire" value (or 12/31/2049 when zero). Requires "Store Quote Expiration Dates" to be enabled.
+            You can override the calculated expiration date when needed.
         promiseDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "Promise_Date formatted as yyyyMMdd."
+          description: |
+            Promise_Date formatted as yyyyMMdd. The date promised to the customer, derived from item availability,
+            lead times, transit days, and packing basis unless overridden. Both the promised and system-calculated
+            dates display when they differ.
       required:
         - customerId
         - companyId
@@ -495,127 +610,202 @@ components:
         lineNo:
           type: number
           format: double
-          description: "Line_No. Required."
+          description: |
+            Line_No. Required. Positional number for the line within the order (for example, enter `3`
+            when the item appears on line 3 of the order).
         itemId:
           type: string
           maxLength: 40
-          description: "Item_ID. Required."
+          description: |
+            Item_ID. Required. Primary identifier of the ordered item. Must be provided in ALL CAPS (for
+            example, `FBR-860`) or the import fails. When the ID does not match directly, the system attempts
+            to translate the value using Customer Part Number, Short Code, Supplier Item Number, Alternate
+            Codes, or UPC Codes.
         unitQuantity:
           type: number
           format: double
-          description: "Unit_Quantity. Required."
+          description: |
+            Unit_Quantity. Required. Quantity ordered in the specified unit of measure (for example, `12` eaches
+            or `5` boxes).
         unitOfMeasure:
           type: string
           maxLength: 8
-          description: "Unit_of_Measure. Required."
+          description: |
+            Unit_of_Measure. Required. Unit of measure associated with `unitQuantity` (for example, `EA` for each
+            or `BOX` for boxes). Units are maintained in Unit of Measure Maintenance.
         unitPrice:
           type: string
           maxLength: 255
-          description: "Unit_Price. Required when the order header omits contractNumber."
+          description: |
+            Unit_Price. Line price per `unitQuantity`, expressed in the customer's currency. Imported prices are
+            honored only when `manualPriceOverride` is `Y`; otherwise pricing is recalculated using the exchange
+            rate established on the order header.
         extendedDescription:
           type: string
           maxLength: 255
-          description: "Extended_Description."
+          description: |
+            Extended_Description. Long-form description for the item. Imported text is appended to the item's
+            existing extended description and appears wherever the ID and short description display.
         sourceLocationId:
-          type: number
-          format: double
-          description: "Source_Location_ID."
+          type: string
+          maxLength: 8
+          description: |
+            Source_Location_ID. Location that picks the material for the ship-to. Defaults from the order/quote
+            header when omitted. If the source location differs from the ship location and transfers are required
+            for non-transferable items (for example, other charge items), the import fails.
         shipLocationId:
-          type: number
-          format: double
-          description: "Ship_Location_ID."
+          type: string
+          maxLength: 8
+          description: |
+            Ship_Location_ID. Location that ships the material to the customer. Supports order-based transfers when
+            the ship and source locations differ; imports fail when transfers are not allowed for the item type.
         productGroupId:
           type: string
           maxLength: 8
-          description: "Product_Group_ID."
+          description: |
+            Product_Group_ID. Groups similar products for reporting (for example, `FANS`, `TABLE`, `COMM`). Defaults
+            from the item's product group defined in the Item Master import when not provided.
         supplierId:
-          type: number
-          format: double
-          description: "Supplier_ID."
+          type: string
+          maxLength: 12
+          description: |
+            Supplier_ID. Identifies the supplier that provided the line item. Either this or `supplierName` may be
+            supplied. Supplier records are maintained in Supplier Maintenance.
         supplierName:
           type: string
           maxLength: 50
-          description: "Supplier_Name."
+          description: |
+            Supplier_Name. Human-readable supplier name used when identifying suppliers by name instead of ID. Either
+            this or `supplierId` may be provided.
         requiredDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "Required_Date formatted as yyyyMMdd."
+          description: |
+            Required_Date formatted as yyyyMMdd. Customer's required-by date for this line. Defaults to the order
+            header `requestedDate` when not supplied.
         expediteDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "Expedite_Date formatted as yyyyMMdd."
+          description: |
+            Expedite_Date formatted as yyyyMMdd. Date the customer is expected to receive the item, typically on or
+            before the required date. Defaults to the header `requestedDate` if omitted and is often calculated by
+            adding the customer's Acceptable Wait Time to the current date.
         willCall:
           type: string
           maxLength: 1
-          description: "Will_Call flag (Y/N)."
+          description: |
+            Will_Call flag (Y/N). Indicates the customer will pick up the item. Defaults from the order header when
+            not provided. Will call orders use the tax jurisdiction for the material's location.
         taxItem:
           type: string
           maxLength: 1
-          description: "Tax_Item flag (Y/N)."
+          description: |
+            Tax_Item flag (Y/N). Marks the line itself as a tax charge (distinct from a taxable inventory item). Use
+            `Y` when the line represents a tax item configured in Item Maintenance.
         okToInterchange:
           type: string
           maxLength: 1
-          description: "OK_to_Interchange flag (Y/N)."
+          description: |
+            OK_to_Interchange flag (Y/N). Set to `Y` when interchangeable substitute items can be used to fill the
+            order (for example, alternate brands of 8½ x 11 paper).
         pricingUnit:
           type: string
           maxLength: 8
-          description: "Pricing_Unit."
+          description: |
+            Pricing_Unit. Unit of measure used for pricing, which can differ from the order unit (for example,
+            pricing per box while ordering individual eaches).
         commissionCost:
           type: string
           maxLength: 255
-          description: "Commission_Cost."
+          description: |
+            Commission_Cost. Cost basis used to calculate commission percentages (for example, based on Sales Pricing
+            Page rules). Enter the value in the customer's currency.
         otherCost:
           type: string
           maxLength: 255
-          description: "Other_Cost."
+          description: |
+            Other_Cost. Miscellaneous cost leveraged for rebates or special customer pricing. Enter the value in the
+            customer's currency.
         poCost:
           type: string
           maxLength: 255
-          description: "PO_Cost."
+          description: |
+            PO_Cost. Purchase order cost for the quantity on this line (for example, `3.00` cost each for ten
+            hammers equals `30.00`).
         disposition:
           type: string
           maxLength: 1
-          description: "Disposition."
+          description: |
+            Disposition. Dictates how shortages are handled when insufficient stock exists. Valid options:
+
+            * `B` Backorder – generate purchasing requirements and fulfill once received.
+            * `C` Cancel – cancel the remaining quantity.
+            * `D` Direct Ship – issue a supplier PO that ships directly to the customer (customer and PO are linked).
+            * `S` Special Order – create a rush purchase order tied to the customer order.
+            * `T` Transfer – transfer inventory from another location. CRO imports allow only `S` or `T`, which may
+              default from the consignment contract line.
         scheduled:
           type: string
           maxLength: 1
-          description: "Scheduled flag (Y/N)."
+          description: |
+            Scheduled flag (Y/N). Set to `Y` when the line has one or more scheduled releases (for example, monthly
+            deliveries for a school district over the course of a year).
         manualPriceOverride:
           type: string
           maxLength: 1
-          description: "Manual_Price_Override flag (Y/N)."
+          description: |
+            Manual_Price_Override flag (Y/N). Set to `Y` to accept the imported `unitPrice`; otherwise the system
+            recalculates pricing.
         commissionCostEdited:
           type: string
           maxLength: 1
-          description: "Commission_Cost_Edited flag (Y/N)."
+          description: |
+            Commission_Cost_Edited flag (Y/N). Indicates whether the commission cost was manually edited (either a
+            direct entry or via profit percent adjustments).
         otherCostEdited:
           type: string
           maxLength: 1
-          description: "Other_Cost_Edited flag (Y/N)."
+          description: |
+            Other_Cost_Edited flag (Y/N). Indicates whether the other cost was manually edited (direct entry or via
+            profit percent adjustments).
         captureUsage:
           type: string
           maxLength: 1
-          description: "Capture_Usage flag (Y/N)."
+          description: |
+            Capture_Usage flag (Y/N). When `Y`, the line contributes to item usage calculations. Defaults from the
+            header `captureUsageDefault` and follows the system's Capture Use At setting (order entry vs. invoice).
         tagAndHoldClassId:
           type: string
           maxLength: 8
-          description: "Tag_and_Hold_Class_ID."
+          description: |
+            Tag_and_Hold_Class_ID. Classifies staged inventory for contractors (for example, grouping rough-in vs.
+            fixture items). Managed in Tag and Hold Class Maintenance.
         contractBinId:
           type: string
           maxLength: 8
-          description: "Contract_Bin_ID."
+          description: |
+            Contract_Bin_ID. Customer's bin identifier for staging the item (for example, pallet or shelf location
+            such as `2F`).
         contractNo:
           type: string
           maxLength: 8
-          description: "Contract_No."
+          description: |
+            Contract_No. Identifies the customer contract covering this line. Required for consignment usage (CUO)
+            and consignment replenishment (CRO) orders. Items must be on the contract with sufficient quantity when
+            customer settings disallow non-contract items.
         allocationQty:
           type: number
           format: double
-          description: "Allocation_Qty."
+          description: |
+            Allocation_Qty. Quantity reserved for the order but not yet on a pick ticket. Defaults to the available
+            stock up to the ordered amount and can be reduced but not increased beyond available inventory.
         promiseDate:
           type: string
           pattern: '^[0-9]{8}$'
-          description: "Promise_Date formatted as yyyyMMdd."
+          description: |
+            Promise_Date formatted as yyyyMMdd. Date promised to the customer. When different from the system-
+            calculated promise date, both values display in Quote Entry and Order Entry. Calculations consider item
+            availability, lead time, transit days, and packing basis.
       required:
         - lineNo
         - itemId

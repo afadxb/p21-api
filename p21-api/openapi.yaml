@@ -36,7 +36,7 @@ paths:
                   header:
                     customerId: 123456
                     companyId: ACC
-                    salesLocationId: 1
+                    salesLocationId: 100002
                     shipToId: 123001
                     contractNumber: 27
                   lines:
@@ -50,7 +50,7 @@ paths:
                   header:
                     customerId: 1001
                     companyId: ACU
-                    salesLocationId: 1
+                    salesLocationId: 100002
                     shipToId: 2001
                     # contractNumber intentionally omitted
                   lines:

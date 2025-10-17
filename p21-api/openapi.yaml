@@ -11,7 +11,7 @@ paths:
       tags: [Sales Orders]
       summary: Create Sales Order(s)
       description: Creates one or more sales orders by inserting header and line records into
-        the TMP_SRX_Header and TMP_SRX_Line staging tables. The request accepts either a single
+        the TMP_OE_Header and TMP_OE_Line staging tables. The request accepts either a single
         order object with `header` and `lines` properties or an `orders` array containing one or
         more of those objects.
       requestBody:
@@ -282,7 +282,7 @@ components:
     # keep any existing schemas untouched; the following are additive
     SalesOrderHeader:
       type: object
-      description: Sales Order header (mapped to TMP_SRX_Header).
+      description: Sales Order header (mapped to TMP_OE_Header).
       properties:
         customerId:
           type: number
@@ -605,7 +605,7 @@ components:
 
     SalesOrderLine:
       type: object
-      description: Sales Order line (mapped to TMP_SRX_Line).
+      description: Sales Order line (mapped to TMP_OE_Line).
       properties:
         lineNo:
           type: number

@@ -10,7 +10,10 @@ paths:
     post:
       tags: [Sales Orders]
       summary: Create Sales Order(s)
-      description: Creates one or more sales orders by inserting header and line records.
+      description: Creates one or more sales orders by inserting header and line records into
+        the TMP_SRX_Header and TMP_SRX_Line staging tables. The request accepts either a single
+        order object with `header` and `lines` properties or an `orders` array containing one or
+        more of those objects.
       requestBody:
         required: true
         content:
@@ -31,31 +34,44 @@ paths:
                 summary: Single order with only mandatory fields
                 value:
                   header:
-                    customerId: CUST-1001
-                    warehouse: MAIN
+                    customerId: 1001
+                    companyId: ACU
+                    salesLocationId: 1
                     approved: "Y"
+                    shipToId: 2001
+                    contractNumber: CT-12345
+                    customerPoNumber: PO-1001
+                    orderDate: "20250116"
                   lines:
-                    - itemId: SKU-ABC-123
-                      quantity: 5
+                    - lineNo: 1
+                      itemId: SKU-ABC-123
+                      unitQuantity: 5
+                      unitOfMeasure: EA
               batchFull:
                 summary: Batch insert with complete header/lines
                 value:
                   orders:
                     - header:
-                        customerId: CUST-1001
-                        poNumber: PO-98765
-                        warehouse: MAIN
+                        customerId: 1001
+                        companyId: ACU
+                        salesLocationId: 4
+                        customerPoNumber: PO-98765
                         approved: "Y"
+                        shipToId: 2001
+                        contractNumber: CT-90001
                         quote: "N"
                         applyBuilderAllowanceFlag: "N"
                         willCall: "N"
-                        orderDate: "2025-10-16"
+                        orderDate: "20251016"
+                        requestedDate: "20251020"
+                        promiseDate: "20251030"
                         # ... include any other non-derived header fields you accept ...
                       lines:
-                        - itemId: SKU-ABC-123
-                          uom: EA
-                          quantity: 5
-                          price: 10.5
+                        - lineNo: 1
+                          itemId: SKU-ABC-123
+                          unitQuantity: 5
+                          unitOfMeasure: EA
+                          unitPrice: "10.5"
                           taxItem: "N"
                           okToInterchange: "N"
                           scheduled: "N"
@@ -63,10 +79,11 @@ paths:
                           commissionCostEdited: "N"
                           otherCostEdited: "N"
                           captureUsage: "N"
-                        - itemId: SKU-XYZ-789
-                          uom: EA
-                          quantity: 2
-                          price: 25
+                        - lineNo: 2
+                          itemId: SKU-XYZ-789
+                          unitQuantity: 2
+                          unitOfMeasure: EA
+                          unitPrice: "25"
                           taxItem: "Y"
                           okToInterchange: "N"
                           scheduled: "N"
@@ -76,7 +93,7 @@ paths:
                           captureUsage: "N"
       responses:
         '201':
-          description: Sales order(s) created successfully.
+          description: Sales order(s) accepted and staged successfully.
           content:
             application/json:
               schema:
@@ -96,13 +113,259 @@ paths:
                 created:
                   summary: Created response
                   value:
-                    message: Sales orders saved
+                    message: Sales orders Accepted
                     orders:
                       - importSetNo: "12345"
                         linesInserted: 2
-        '400': { description: Validation error (missing required fields or empty lines). }
+        '400':
+          description: Validation error (missing required fields, invalid data, or empty lines).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: string
+                    description: Explanation of what validation failed.
+              example:
+                error: Order 1 missing required field(s): companyId
         '401': { description: Unauthorized. }
         '500': { description: Server error. }
+  /v1/inventory/items:
+    get:
+      tags: [Inventory]
+      summary: List inventory items
+      description: |
+        Returns inventory item identifiers and descriptions from `inv_mast`. When `paging=true`
+        the endpoint also returns the total matching records and page count. By default the
+        endpoint limits results to 100 records and sorts by `item_id` ascending.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 1-based page number. Only used when `paging=true`.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            default: 100
+          description: Number of records per page (or maximum records returned when `paging=false`).
+        - in: query
+          name: order
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+          description: Sort order applied to `item_id`.
+        - in: query
+          name: paging
+          schema:
+            type: boolean
+            default: false
+          description: Toggle cursor pagination with total counts. When false, only the first `limit` records are returned.
+        - in: query
+          name: inactive
+          schema:
+            type: string
+            enum: ['true', 'false']
+          description: Filter items by their `inactive` flag. Use `inactive=false` to retrieve active items only.
+      responses:
+        '200':
+          description: Successfully retrieved a page of inventory items.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItemListResponse'
+              examples:
+                default:
+                  summary: Items page
+                  value:
+                    data:
+                      - item_id: "A-100"
+                        item_desc: "Stainless Steel Bolt"
+                      - item_id: "A-101"
+                        item_desc: "Stainless Steel Nut"
+                    totalCount: 2
+                    page: 1
+                    totalPages: 1
+        '500':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: string
+      security: []
+  /v1/inventory/items/{item_id}:
+    get:
+      tags: [Inventory]
+      summary: Get inventory item details
+      description: Retrieves a single inventory item with additional metadata from `inv_mast`.
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema:
+            type: string
+            maxLength: 50
+          description: Inventory item identifier.
+      responses:
+        '200':
+          description: Inventory item located.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItemDetail'
+              example:
+                item_id: "A-100"
+                inv_mast_uid: 123456
+                item_desc: "Stainless Steel Bolt"
+                delete_flag: "N"
+                weight: 1.25
+                net_weight: 1.2
+                inactive: "N"
+                default_sales_discount_group: "STD"
+                extended_desc: "Box of 25 stainless bolts"
+                keywords: "bolt,stainless"
+                base_unit: "EA"
+                commodity_code: "BOLTS"
+                length: 4
+                width: 1
+                height: 1
+        '404':
+          description: Item not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Item not found
+        '500':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: string
+      security: []
+  /v1/ap/suppliers:
+    get:
+      tags: [Suppliers]
+      summary: List suppliers
+      description: Returns supplier master records enriched with address and payment term details.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 1-based page number.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 500
+          description: Maximum number of suppliers to return per page. Aliases `page_size` and `pageSize` are also accepted.
+        - in: query
+          name: updated_since
+          schema:
+            type: string
+            format: date-time
+          description: Filter suppliers modified on or after the provided ISO-8601 timestamp.
+        - in: query
+          name: company
+          schema:
+            type: string
+          description: Restrict results to the specified company identifier.
+      responses:
+        '200':
+          description: Successfully retrieved a page of suppliers.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierListResponse'
+              examples:
+                default:
+                  summary: Supplier list
+                  value:
+                    data:
+                      - erpSourceId: P21
+                        externalSystemId: "company[1];1234"
+                        isActive: true
+                        companyId: "company[1]"
+                        currencyCode: USD
+                        name: "Fastenal"
+                        paymentTerm: "company[1];NET30"
+                        supplierId: "1234"
+                        ledgerDimension1: "company[1];DIMENSION1;4000"
+                        taxDimension1: "company[1];DIMENSION1;5000"
+                        clearance1Dimension1: "company[1];DIMENSION1;4000"
+                        taxIndicator1: null
+                        taxIndicator2: null
+                        streetAddress: "123 Main St"
+                        city: "Cleveland"
+                        zip: "44101"
+                        country: "US"
+                        telephone: "555-0100"
+                        fax: null
+                        homepage: null
+                        emailAddress: "ap@fastenal.com"
+                        state: OH
+                        isProcurable: true
+                        prepayment: true
+                        updatedAt: "2024-01-15T13:45:00.000Z"
+                        terms:
+                          id: NET30
+                          description: Net 30 Days
+                          discountPercent: 2
+                          discountDays: 10
+                          netDays: 30
+                    page: 1
+                    limit: 500
+                    total: 1
+                    totalPages: 1
+                    lastPage: true
+        '400':
+          description: Invalid request filters.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Invalid updated_since parameter. Expecting ISO 8601 date.
+        '500':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: string
+      security: []
 
 components:
   # --- keep your existing components here ---
@@ -110,84 +373,346 @@ components:
     # keep any existing schemas untouched; the following are additive
     SalesOrderHeader:
       type: object
-      description: Sales Order header (mapped to OE_HDR).
+      description: Sales Order header (mapped to TMP_SRX_Header).
       properties:
-        # Populate from your order.js/DB mapping; examples included for clarity
         customerId:
+          type: number
+          format: double
+          description: "DB column: Customer_ID. Required."
+        customerName:
           type: string
-          description: "DB column: CUSTOMER_ID Mandatory."
-        poNumber:
+          maxLength: 50
+          description: "DB column: Customer_Name."
+        companyId:
           type: string
-          description: "DB column: PO_NUMBER"
-        warehouse:
+          maxLength: 8
+          description: "DB column: Company_ID. Required."
+        salesLocationId:
+          type: number
+          format: double
+          description: "DB column: Sales_Location_ID. Required."
+        customerPoNumber:
           type: string
-          description: "DB column: WHSE Mandatory."
-        approved:
+          maxLength: 50
+          description: "DB column: Customer_PO_Number."
+        contactId:
           type: string
-          description: "DB column: APPROVED Flag Y/N Mandatory."
-        quote:
+          maxLength: 16
+          description: "DB column: Contact_ID."
+        contactName:
           type: string
-          description: "DB column: QUOTE Flag Y/N"
-        applyBuilderAllowanceFlag:
+          maxLength: 50
+          description: "DB column: Contact_Name."
+        taker:
           type: string
-          description: "DB column: APPLY_BUILDER_ALLOWANCE Flag Y/N"
-        willCall:
+          maxLength: 30
+          description: "DB column: Taker."
+        jobName:
           type: string
-          description: "DB column: WILL_CALL Flag Y/N"
+          maxLength: 40
+          description: "DB column: Job_Name."
         orderDate:
           type: string
-          format: date
-          description: "DB column: ORDER_DATE"
-        # ... add the rest of your header fields, each with DB column and flags ...
+          pattern: '^[0-9]{8}$'
+          description: "DB column: Order_Date formatted as yyyyMMdd."
+        requestedDate:
+          type: string
+          pattern: '^[0-9]{8}$'
+          description: "DB column: Requested_Date formatted as yyyyMMdd."
+        quote:
+          type: string
+          maxLength: 1
+          description: "DB column: Quote flag (Y/N)."
+        approved:
+          type: string
+          maxLength: 1
+          description: "DB column: Approved flag (Y/N). Required."
+        shipToId:
+          type: number
+          format: double
+          description: "DB column: Ship_To_ID. Required."
+        shipToName:
+          type: string
+          maxLength: 50
+          description: "DB column: Ship_To_Name."
+        shipToAddress1:
+          type: string
+          maxLength: 50
+          description: "DB column: Ship_To_Address_1."
+        shipToAddress2:
+          type: string
+          maxLength: 50
+          description: "DB column: Ship_To_Address_2."
+        shipToCity:
+          type: string
+          maxLength: 50
+          description: "DB column: Ship_To_City."
+        shipToState:
+          type: string
+          maxLength: 50
+          description: "DB column: Ship_To_State."
+        shipToZipCode:
+          type: string
+          maxLength: 10
+          description: "DB column: Ship_To_Zip_Code."
+        shipToCountry:
+          type: string
+          maxLength: 50
+          description: "DB column: Ship_To_Country."
+        sourceLocationId:
+          type: number
+          format: double
+          description: "DB column: Source_Location_ID."
+        carrierId:
+          type: number
+          format: double
+          description: "DB column: Carrier_ID."
+        carrierName:
+          type: string
+          maxLength: 50
+          description: "DB column: Carrier_Name."
+        route:
+          type: string
+          maxLength: 255
+          description: "DB column: Route."
+        packingBasis:
+          type: string
+          maxLength: 16
+          description: "DB column: Packing_Basis."
+        deliveryInstructions:
+          type: string
+          maxLength: 255
+          description: "DB column: Delivery_Instructions."
+        terms:
+          type: string
+          maxLength: 2
+          description: "DB column: Terms."
+        termsDesc:
+          type: string
+          maxLength: 20
+          description: "DB column: Terms_Desc."
+        willCall:
+          type: string
+          maxLength: 1
+          description: "DB column: Will_Call flag (Y/N)."
+        class1:
+          type: string
+          maxLength: 8
+          description: "DB column: Class_1."
+        class2:
+          type: string
+          maxLength: 8
+          description: "DB column: Class_2."
+        class3:
+          type: string
+          maxLength: 8
+          description: "DB column: Class_3."
+        class4:
+          type: string
+          maxLength: 8
+          description: "DB column: Class_4."
+        class5:
+          type: string
+          maxLength: 8
+          description: "DB column: Class_5."
+        rmaFlag:
+          type: string
+          maxLength: 1
+          description: "DB column: RMA_Flag."
+        freightCode:
+          type: string
+          maxLength: 30
+          description: "DB column: Freight_Code."
+        thirdPartyBillingFlagDesc:
+          type: string
+          maxLength: 40
+          description: "DB column: Third_Party_Billing_Flag_Desc."
+        captureUsageDefault:
+          type: string
+          maxLength: 1
+          description: "DB column: Capture_Usage_Default flag (Y/N)."
+        allocate:
+          type: string
+          maxLength: 1
+          description: "DB column: Allocate flag (Y/N)."
+        contractNumber:
+          type: string
+          maxLength: 255
+          description: "DB column: Contract_Number. Required."
+        invoiceBatchNumber:
+          type: string
+          maxLength: 255
+          description: "DB column: Invoice_Batch_Number."
+        shipToEmailAddress:
+          type: string
+          maxLength: 255
+          format: email
+          description: "DB column: Ship_To_Email_Address."
+        setInvoiceExchangeRateSourceDesc:
+          type: string
+          maxLength: 40
+          description: "DB column: Set_Invoice_Exchange_Rate_Source_Desc."
+        shipToPhone:
+          type: string
+          maxLength: 20
+          description: "DB column: Ship_To_Phone."
+        currencyId:
+          type: string
+          maxLength: 255
+          description: "DB column: Currency_ID."
+        applyBuilderAllowanceFlag:
+          type: string
+          maxLength: 1
+          description: "DB column: Apply_Builder_Allowance_Flag (Y/N)."
+        quoteExpirationDate:
+          type: string
+          pattern: '^[0-9]{8}$'
+          description: "DB column: Quote_Expiration_Date formatted as yyyyMMdd."
+        promiseDate:
+          type: string
+          pattern: '^[0-9]{8}$'
+          description: "DB column: Promise_Date formatted as yyyyMMdd."
       required:
-        # Include only mandatory non-derived fields
         - customerId
-        - warehouse
+        - companyId
+        - salesLocationId
         - approved
+        - shipToId
+        - contractNumber
 
     SalesOrderLine:
       type: object
-      description: Sales Order line (mapped to OE_Line).
+      description: Sales Order line (mapped to TMP_SRX_Line).
       properties:
+        lineNo:
+          type: number
+          format: double
+          description: "DB column: Line_No. Required."
         itemId:
           type: string
-          description: "DB column: ITEM_ID Mandatory."
-        uom:
+          maxLength: 40
+          description: "DB column: Item_ID. Required."
+        unitQuantity:
+          type: number
+          format: double
+          description: "DB column: Unit_Quantity. Required."
+        unitOfMeasure:
           type: string
-          description: "DB column: UOM"
-        quantity:
+          maxLength: 8
+          description: "DB column: Unit_of_Measure. Required."
+        unitPrice:
+          type: string
+          maxLength: 255
+          description: "DB column: Unit_Price."
+        extendedDescription:
+          type: string
+          maxLength: 255
+          description: "DB column: Extended_Description."
+        sourceLocationId:
           type: number
           format: double
-          description: "DB column: QTY Mandatory."
-        price:
+          description: "DB column: Source_Location_ID."
+        shipLocationId:
           type: number
           format: double
-          description: "DB column: PRICE"
+          description: "DB column: Ship_Location_ID."
+        productGroupId:
+          type: string
+          maxLength: 8
+          description: "DB column: Product_Group_ID."
+        supplierId:
+          type: number
+          format: double
+          description: "DB column: Supplier_ID."
+        supplierName:
+          type: string
+          maxLength: 50
+          description: "DB column: Supplier_Name."
+        requiredDate:
+          type: string
+          pattern: '^[0-9]{8}$'
+          description: "DB column: Required_Date formatted as yyyyMMdd."
+        expediteDate:
+          type: string
+          pattern: '^[0-9]{8}$'
+          description: "DB column: Expedite_Date formatted as yyyyMMdd."
+        willCall:
+          type: string
+          maxLength: 1
+          description: "DB column: Will_Call flag (Y/N)."
         taxItem:
           type: string
-          description: "DB column: TAX_ITEM Flag Y/N"
+          maxLength: 1
+          description: "DB column: Tax_Item flag (Y/N)."
         okToInterchange:
           type: string
-          description: "DB column: OK_TO_INTERCHANGE Flag Y/N"
+          maxLength: 1
+          description: "DB column: OK_to_Interchange flag (Y/N)."
+        pricingUnit:
+          type: string
+          maxLength: 8
+          description: "DB column: Pricing_Unit."
+        commissionCost:
+          type: string
+          maxLength: 255
+          description: "DB column: Commission_Cost."
+        otherCost:
+          type: string
+          maxLength: 255
+          description: "DB column: Other_Cost."
+        poCost:
+          type: string
+          maxLength: 255
+          description: "DB column: PO_Cost."
+        disposition:
+          type: string
+          maxLength: 1
+          description: "DB column: Disposition."
         scheduled:
           type: string
-          description: "DB column: SCHEDULED Flag Y/N"
+          maxLength: 1
+          description: "DB column: Scheduled flag (Y/N)."
         manualPriceOverride:
           type: string
-          description: "DB column: MANUAL_PRICE_OVERRIDE Flag Y/N"
+          maxLength: 1
+          description: "DB column: Manual_Price_Override flag (Y/N)."
         commissionCostEdited:
           type: string
-          description: "DB column: COMMISSION_COST_EDITED Flag Y/N"
+          maxLength: 1
+          description: "DB column: Commission_Cost_Edited flag (Y/N)."
         otherCostEdited:
           type: string
-          description: "DB column: OTHER_COST_EDITED Flag Y/N"
+          maxLength: 1
+          description: "DB column: Other_Cost_Edited flag (Y/N)."
         captureUsage:
           type: string
-          description: "DB column: CAPTURE_USAGE Flag Y/N"
-        # ... add any remaining line fields you accept ...
+          maxLength: 1
+          description: "DB column: Capture_Usage flag (Y/N)."
+        tagAndHoldClassId:
+          type: string
+          maxLength: 8
+          description: "DB column: Tag_and_Hold_Class_ID."
+        contractBinId:
+          type: string
+          maxLength: 8
+          description: "DB column: Contract_Bin_ID."
+        contractNo:
+          type: string
+          maxLength: 8
+          description: "DB column: Contract_No."
+        allocationQty:
+          type: number
+          format: double
+          description: "DB column: Allocation_Qty."
+        promiseDate:
+          type: string
+          pattern: '^[0-9]{8}$'
+          description: "DB column: Promise_Date formatted as yyyyMMdd."
       required:
+        - lineNo
         - itemId
-        - quantity
+        - unitQuantity
+        - unitOfMeasure
 
     SalesOrder:
       type: object
@@ -197,6 +722,187 @@ components:
           $ref: '#/components/schemas/SalesOrderHeader'
         lines:
           type: array
+          minItems: 1
           items:
             $ref: '#/components/schemas/SalesOrderLine'
       required: [header, lines]
+    InventoryItemSummary:
+      type: object
+      properties:
+        item_id:
+          type: string
+          description: Item identifier from `inv_mast.item_id`.
+        item_desc:
+          type: string
+          description: Item description from `inv_mast.item_desc`.
+    InventoryItemListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryItemSummary'
+        totalCount:
+          type: integer
+          description: Total number of matching items when paging is enabled, otherwise count of the returned records.
+        page:
+          type: integer
+        totalPages:
+          type: integer
+      required: [data, totalCount, page, totalPages]
+    InventoryItemDetail:
+      type: object
+      properties:
+        item_id:
+          type: string
+        inv_mast_uid:
+          type: integer
+          nullable: true
+        item_desc:
+          type: string
+        delete_flag:
+          type: string
+        weight:
+          type: number
+          nullable: true
+        net_weight:
+          type: number
+          nullable: true
+        inactive:
+          type: string
+        default_sales_discount_group:
+          type: string
+          nullable: true
+        extended_desc:
+          type: string
+          nullable: true
+        keywords:
+          type: string
+          nullable: true
+        base_unit:
+          type: string
+          nullable: true
+        commodity_code:
+          type: string
+          nullable: true
+        length:
+          type: number
+          nullable: true
+        width:
+          type: number
+          nullable: true
+        height:
+          type: number
+          nullable: true
+    SupplierTerms:
+      type: object
+      properties:
+        id:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        discountPercent:
+          type: number
+          nullable: true
+        discountDays:
+          type: integer
+          nullable: true
+        netDays:
+          type: integer
+          nullable: true
+    Supplier:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        companyId:
+          type: string
+          nullable: true
+        currencyCode:
+          type: string
+          nullable: true
+        name:
+          type: string
+        paymentTerm:
+          type: string
+          nullable: true
+        supplierId:
+          type: string
+          nullable: true
+        ledgerDimension1:
+          type: string
+          nullable: true
+        taxDimension1:
+          type: string
+          nullable: true
+        clearance1Dimension1:
+          type: string
+          nullable: true
+        taxIndicator1:
+          type: string
+          nullable: true
+        taxIndicator2:
+          type: string
+          nullable: true
+        streetAddress:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        zip:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        telephone:
+          type: string
+          nullable: true
+        fax:
+          type: string
+          nullable: true
+        homepage:
+          type: string
+          nullable: true
+        emailAddress:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        isProcurable:
+          type: boolean
+        prepayment:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        terms:
+          $ref: '#/components/schemas/SupplierTerms'
+    SupplierListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Supplier'
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        lastPage:
+          type: boolean
+      required: [data, page, limit, total, totalPages, lastPage]

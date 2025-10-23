@@ -276,10 +276,336 @@ paths:
                     type: string
       security: []
 
+  /v1/ap/purchaseorders:
+    get:
+      tags: [Accounts Payable]
+      summary: List purchase orders
+      description: |
+        Returns Prophet 21 purchase order headers with nested line and comment details.
+        Results can be filtered by company, supplier, purchase order number, and order dates.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 1-based page number.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          description: Maximum number of purchase orders to return per page.
+        - in: query
+          name: company
+          schema:
+            type: string
+          description: Filter by company number.
+        - in: query
+          name: supplier
+          schema:
+            type: string
+          description: Filter by supplier ID.
+        - in: query
+          name: poNo
+          schema:
+            type: string
+          description: Filter by purchase order number.
+        - in: query
+          name: updatedSince
+          schema:
+            type: string
+            format: date-time
+          description: Return purchase orders updated on or after the provided ISO 8601 timestamp.
+        - in: query
+          name: orderDateFrom
+          schema:
+            type: string
+            format: date-time
+          description: Only include orders with an order date on or after this value.
+        - in: query
+          name: orderDateTo
+          schema:
+            type: string
+            format: date-time
+          description: Only include orders with an order date on or before this value.
+      responses:
+        '200':
+          description: Purchase orders retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderListResponse'
+              example:
+                purchaseOrders:
+                  - erpSourceId: MyERP
+                    externalSystemId: "company[TC1];PO400001"
+                    isActive: true
+                    companyId: "company[TC1]"
+                    amount: 1000
+                    currencyCode: EUR
+                    orderIdentifier: PO400001
+                    orderIdentifier2: ""
+                    registerDate: "2020-10-16T09:11:27.570Z"
+                    dueDate: "2020-10-16T09:11:27.570Z"
+                    supplier: "company[TC1];TS1"
+                    reference: testuser
+                    reference2: ""
+                    paymentTerm: "company[TC1];N30"
+                    prepayment: false
+                    orderType: T
+                    purchaseOrderLines:
+                      - erpSourceId: MyERP
+                        externalSystemId: "company[TC1];PO400001;101"
+                        isActive: true
+                        amount: 500
+                        dimensions: "1001001"
+                        itemDescription: TestItem
+                        itemNumber: "1234"
+                        lineNumber: "101"
+                        itemId: ""
+                        quantity: 1
+                        unitSize: 1
+                        unit: "-"
+                        unitPrice: 500
+                        reference: testuser
+                        reference2: ""
+                        taxIndicator1: "company[TC1];AP-EU"
+                        taxIndicator2: ""
+                        isServiceBased: false
+                        isTwoWayMatch: true
+                    purchaseOrderComments:
+                      - erpSourceId: MyERP
+                        externalSystemId: "company[TC1];PO400001;Comment1"
+                        commentDate: "2020-10-16T09:11:27.571Z"
+                        comment: Test Comment
+        '400':
+          description: Invalid filter values were supplied.
+        '500':
+          description: Unexpected server error while retrieving purchase orders.
+
+  /v1/ap/purchaseorders/{poNo}:
+    get:
+      tags: [Accounts Payable]
+      summary: Retrieve a purchase order
+      description: Returns a single purchase order header with nested line items and comments.
+      parameters:
+        - in: path
+          name: poNo
+          required: true
+          schema:
+            type: string
+          description: Purchase order number to retrieve.
+        - in: query
+          name: company
+          schema:
+            type: string
+          description: Optional company number scope for the requested purchase order.
+        - in: query
+          name: updatedSince
+          schema:
+            type: string
+            format: date-time
+          description: Ensure the purchase order has been updated on or after this timestamp.
+      responses:
+        '200':
+          description: Purchase order retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+              example:
+                erpSourceId: MyERP
+                externalSystemId: "company[TC1];PO400001"
+                isActive: true
+                companyId: "company[TC1]"
+                amount: 1000
+                currencyCode: EUR
+                orderIdentifier: PO400001
+                orderIdentifier2: ""
+                registerDate: "2020-10-16T09:11:27.570Z"
+                dueDate: "2020-10-16T09:11:27.570Z"
+                supplier: "company[TC1];TS1"
+                reference: testuser
+                reference2: ""
+                paymentTerm: "company[TC1];N30"
+                prepayment: false
+                orderType: T
+                purchaseOrderLines:
+                  - erpSourceId: MyERP
+                    externalSystemId: "company[TC1];PO400001;101"
+                    isActive: true
+                    amount: 500
+                    dimensions: "1001001"
+                    itemDescription: TestItem
+                    itemNumber: "1234"
+                    lineNumber: "101"
+                    itemId: ""
+                    quantity: 1
+                    unitSize: 1
+                    unit: "-"
+                    unitPrice: 500
+                    reference: testuser
+                    reference2: ""
+                    taxIndicator1: "company[TC1];AP-EU"
+                    taxIndicator2: ""
+                    isServiceBased: false
+                    isTwoWayMatch: true
+                purchaseOrderComments:
+                  - erpSourceId: MyERP
+                    externalSystemId: "company[TC1];PO400001;Comment1"
+                    commentDate: "2020-10-16T09:11:27.571Z"
+                    comment: Test Comment
+        '404':
+          description: Purchase order not found.
+        '400':
+          description: Invalid filter values were supplied.
+        '500':
+          description: Unexpected server error while retrieving the purchase order.
+
 components:
   # --- keep your existing components here ---
   schemas:
     # keep any existing schemas untouched; the following are additive
+    PurchaseOrderLine:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+        isActive:
+          type: boolean
+        amount:
+          type: number
+          format: double
+        dimensions:
+          type: string
+          nullable: true
+        itemDescription:
+          type: string
+          nullable: true
+        itemNumber:
+          type: string
+          nullable: true
+        lineNumber:
+          type: string
+        itemId:
+          type: string
+        quantity:
+          type: number
+          format: double
+        unitSize:
+          type: number
+          format: double
+          nullable: true
+        unit:
+          type: string
+          nullable: true
+        unitPrice:
+          type: number
+          format: double
+        reference:
+          type: string
+          nullable: true
+        reference2:
+          type: string
+          nullable: true
+        taxIndicator1:
+          type: string
+          nullable: true
+        taxIndicator2:
+          type: string
+          nullable: true
+        isServiceBased:
+          type: boolean
+        isTwoWayMatch:
+          type: boolean
+
+    PurchaseOrderComment:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+        commentDate:
+          type: string
+          format: date-time
+          nullable: true
+        comment:
+          type: string
+          nullable: true
+
+    PurchaseOrder:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+        isActive:
+          type: boolean
+        companyId:
+          type: string
+          nullable: true
+        amount:
+          type: number
+          format: double
+        currencyCode:
+          type: string
+          nullable: true
+        orderIdentifier:
+          type: string
+          nullable: true
+        orderIdentifier2:
+          type: string
+        registerDate:
+          type: string
+          format: date-time
+          nullable: true
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        supplier:
+          type: string
+          nullable: true
+        reference:
+          type: string
+          nullable: true
+        reference2:
+          type: string
+          nullable: true
+        paymentTerm:
+          type: string
+          nullable: true
+        prepayment:
+          type: boolean
+        orderType:
+          type: string
+          nullable: true
+        purchaseOrderLines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderLine'
+        purchaseOrderComments:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderComment'
+
+    PurchaseOrderListResponse:
+      type: object
+      properties:
+        purchaseOrders:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrder'
+      required: [purchaseOrders]
+
     SalesOrderHeader:
       type: object
       description: Sales Order header (mapped to TMP_OE_Header).

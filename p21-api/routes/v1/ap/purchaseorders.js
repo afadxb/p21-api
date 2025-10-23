@@ -71,16 +71,17 @@ const safeNumber = (value) => {
 };
 
 const formatLine = (line, headerContext) => {
-  const companyToken = buildCompanyToken(headerContext.company_no);
   const quantity = safeNumber(line.qty_ordered) ?? 0;
   const unitPrice = safeNumber(line.unit_price) ?? 0;
   const amount = quantity * unitPrice;
 
+  const companyCode = headerContext.company_no === null || headerContext.company_no === undefined
+    ? null
+    : String(headerContext.company_no).trim() || null;
+
   return {
     erpSourceId: process.env.ERP_SOURCE_ID || 'P21',
-    externalSystemId: companyToken
-      ? `${companyToken};${headerContext.po_no};${String(line.line_no).trim()}`
-      : `${headerContext.po_no};${String(line.line_no).trim()}`,
+    externalSystemId: `${headerContext.po_no};${String(line.line_no).trim()}`,
     isActive: line.delete_flag !== 'Y',
     amount,
     dimensions: line.gl_account_no ? String(line.gl_account_no).trim() : null,
@@ -94,9 +95,8 @@ const formatLine = (line, headerContext) => {
     unitPrice,
     reference: headerContext.requested_by_name || null,
     reference2: headerContext.po_desc || null,
-    taxIndicator1: line.tax_group_id && companyToken
-      ? `${companyToken};${String(line.tax_group_id).trim()}`
-      : line.tax_group_id ? String(line.tax_group_id).trim() : null,
+    taxIndicator1: companyCode
+      || (line.tax_group_id ? String(line.tax_group_id).trim() || null : null),
     taxIndicator2: null,
     isServiceBased: false,
     isTwoWayMatch: line.vouch_completed === 'Y' ? false : true
@@ -104,14 +104,11 @@ const formatLine = (line, headerContext) => {
 };
 
 const formatComment = (comment, headerContext) => {
-  const companyToken = buildCompanyToken(headerContext.company_no);
   const identifier = comment.note_id ? String(comment.note_id).trim() : 'comment';
 
   return {
     erpSourceId: process.env.ERP_SOURCE_ID || 'P21',
-    externalSystemId: companyToken
-      ? `${companyToken};${headerContext.po_no};${identifier}`
-      : `${headerContext.po_no};${identifier}`,
+    externalSystemId: `${headerContext.po_no};${identifier}`,
     commentDate: toIsoString(comment.date_created),
     comment: comment.comment_text || null
   };
@@ -154,9 +151,7 @@ const buildHeaderResponse = (header, lineMap, commentMap) => {
 
   return {
     erpSourceId: process.env.ERP_SOURCE_ID || 'P21',
-    externalSystemId: companyToken
-      ? `${companyToken};${headerKey}`
-      : headerKey,
+    externalSystemId: headerKey,
     isActive: header.delete_flag !== 'Y' && header.closed_flag !== 'Y',
     companyId: companyToken,
     amount,
@@ -181,8 +176,15 @@ const buildCompositeWhereClause = (alias, headers) => {
 
 const addHeaderIdentifiers = (request, headers) => {
   headers.forEach((header, index) => {
-    request.input(`po${index}`, sql.VarChar, header.po_no);
-    request.input(`company${index}`, sql.VarChar, header.company_no);
+    const poValue = header.po_no === null || header.po_no === undefined
+      ? ''
+      : String(header.po_no).trim();
+    const companyValue = header.company_no === null || header.company_no === undefined
+      ? ''
+      : String(header.company_no).trim();
+
+    request.input(`po${index}`, sql.VarChar, poValue);
+    request.input(`company${index}`, sql.VarChar, companyValue);
   });
 };
 

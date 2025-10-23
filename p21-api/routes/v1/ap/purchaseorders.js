@@ -169,8 +169,6 @@ const buildHeaderResponse = (header, lineMap, commentMap) => {
     reference: requestedByName,
     reference2: header.po_desc ? String(header.po_desc).trim() : '',
     paymentTerm,
-    prepayment: header.prepayment_flag === 'Y',
-    orderType: header.po_type ? String(header.po_type).trim() : null,
     purchaseOrderLines: lines,
     purchaseOrderComments: comments
   };
@@ -254,7 +252,6 @@ const fetchPurchaseOrders = async (filters, options = {}) => {
       po_hdr.po_hdr_uid,
       po_hdr.revised_po,
       po_hdr.po_type,
-      po_hdr.prepayment_flag,
       contacts.first_name,
       contacts.last_name
     FROM po_hdr

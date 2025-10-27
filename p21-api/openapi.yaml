@@ -283,6 +283,8 @@ paths:
       description: |
         Returns Prophet 21 purchase order headers with nested line and comment details.
         Results can be filtered by company, supplier, purchase order number, and order dates.
+        Example request:
+        `GET /v1/ap/purchaseorders?company=TC1&supplier=SUP1001&limit=500&page=1`
       parameters:
         - in: query
           name: page
@@ -296,9 +298,9 @@ paths:
           schema:
             type: integer
             minimum: 1
-            maximum: 200
-            default: 50
-          description: Maximum number of purchase orders to return per page.
+            maximum: 2000
+            default: 500
+          description: Maximum number of purchase orders to return per page. The value cannot exceed 2000.
         - in: query
           name: company
           schema:
@@ -382,6 +384,10 @@ paths:
                         externalSystemId: "company[TC1];PO400001;Comment1"
                         commentDate: "2020-10-16T09:11:27.571Z"
                         comment: Test Comment
+                footer:
+                  page: 1
+                  pageSize: 500
+                  lastpage: true
         '400':
           description: Invalid filter values were supplied.
         '500':
@@ -604,7 +610,19 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PurchaseOrder'
-      required: [purchaseOrders]
+        footer:
+          type: object
+          properties:
+            page:
+              type: integer
+              minimum: 1
+            pageSize:
+              type: integer
+              minimum: 1
+            lastpage:
+              type: boolean
+          required: [page, pageSize, lastpage]
+      required: [purchaseOrders, footer]
 
     SalesOrderHeader:
       type: object

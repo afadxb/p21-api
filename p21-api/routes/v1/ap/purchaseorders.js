@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
 
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 200;
+const DEFAULT_LIMIT = 500;
+const MAX_LIMIT = 2000;
 const DEFAULT_MIN_ORDER_DATE = new Date('2018-01-01T00:00:00Z');
 
 const parsePositiveInt = (value, defaultValue) => {
@@ -198,7 +198,7 @@ const fetchPurchaseOrders = async (filters, options = {}) => {
 
   const headerRequest = pool.request();
   headerRequest.input('offset', sql.Int, offset);
-  headerRequest.input('limit', sql.Int, limit);
+  headerRequest.input('limit', sql.Int, limit + 1);
 
   const whereFragments = ['po_hdr.order_date >= @minOrderDate'];
   headerRequest.input('minOrderDate', sql.DateTime2, DEFAULT_MIN_ORDER_DATE);
@@ -265,19 +265,30 @@ const fetchPurchaseOrders = async (filters, options = {}) => {
 
   const headerResult = await headerRequest.query(headerQuery);
   const headers = headerResult.recordset || [];
+  const hasMore = headers.length > limit;
+  const limitedHeaders = hasMore ? headers.slice(0, limit) : headers;
 
-  if (headers.length === 0) {
-    return [];
+  const footer = {
+    page,
+    pageSize: limit,
+    lastpage: !hasMore
+  };
+
+  if (limitedHeaders.length === 0) {
+    return {
+      purchaseOrders: [],
+      footer
+    };
   }
 
   const lineRequest = pool.request();
   const commentRequest = pool.request();
 
-  const compositeWhere = buildCompositeWhereClause('line', headers);
-  const commentCompositeWhere = buildCompositeWhereClause('hdr', headers);
+  const compositeWhere = buildCompositeWhereClause('line', limitedHeaders);
+  const commentCompositeWhere = buildCompositeWhereClause('hdr', limitedHeaders);
 
-  addHeaderIdentifiers(lineRequest, headers);
-  addHeaderIdentifiers(commentRequest, headers);
+  addHeaderIdentifiers(lineRequest, limitedHeaders);
+  addHeaderIdentifiers(commentRequest, limitedHeaders);
 
   const lineQuery = `
     SELECT
@@ -359,7 +370,12 @@ const fetchPurchaseOrders = async (filters, options = {}) => {
     });
   });
 
-  return headers.map((header) => buildHeaderResponse(header, lineMap, commentMap));
+  const purchaseOrders = limitedHeaders.map((header) => buildHeaderResponse(header, lineMap, commentMap));
+
+  return {
+    purchaseOrders,
+    footer
+  };
 };
 
 router.get('/', async (req, res) => {
@@ -411,8 +427,8 @@ router.get('/', async (req, res) => {
       limit: req.query.limit || req.query.pageSize || req.query.page_size
     };
 
-    const data = await fetchPurchaseOrders(filters, options);
-    res.json({ purchaseOrders: data });
+    const { purchaseOrders, footer } = await fetchPurchaseOrders(filters, options);
+    res.json({ purchaseOrders, footer });
   } catch (error) {
     console.error('Failed to fetch purchase orders', error);
     res.status(500).json({ error: 'Failed to fetch purchase orders' });
@@ -436,12 +452,12 @@ router.get('/:poNo', async (req, res) => {
       filters.updatedSince = updatedSince;
     }
 
-    const data = await fetchPurchaseOrders(filters, { page: 1, limit: 1 });
-    if (!data || data.length === 0) {
+    const { purchaseOrders } = await fetchPurchaseOrders(filters, { page: 1, limit: 1 });
+    if (!purchaseOrders || purchaseOrders.length === 0) {
       return res.status(404).json({ error: 'Purchase order not found' });
     }
 
-    return res.json(data[0]);
+    return res.json(purchaseOrders[0]);
   } catch (error) {
     console.error('Failed to fetch purchase order', error);
     return res.status(500).json({ error: 'Failed to fetch purchase order' });

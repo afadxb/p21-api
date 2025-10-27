@@ -39,7 +39,7 @@ const buildCompanyToken = (companyNo) => {
     return null;
   }
   const trimmed = String(companyNo).trim();
-  return trimmed ? `company[${trimmed}]` : null;
+  return trimmed;
 };
 
 const mapCurrencyIdToCode = (currencyId) => {
@@ -95,8 +95,7 @@ const formatLine = (line, headerContext) => {
     unitPrice,
     reference: headerContext.requested_by_name || null,
     reference2: headerContext.po_desc || null,
-    taxIndicator1: companyCode
-      || (line.tax_group_id ? String(line.tax_group_id).trim() || null : null),
+    taxIndicator1: (line.tax_group_id ? String(line.tax_group_id).trim() || null : null),
     taxIndicator2: null,
     isServiceBased: false,
     isTwoWayMatch: line.vouch_completed === 'Y' ? false : true
@@ -116,12 +115,8 @@ const formatComment = (comment, headerContext) => {
 
 const buildHeaderResponse = (header, lineMap, commentMap) => {
   const companyToken = buildCompanyToken(header.company_no);
-  const supplierToken = header.supplier_id && companyToken
-    ? `${companyToken};${String(header.supplier_id).trim()}`
-    : header.supplier_id ? String(header.supplier_id).trim() : null;
-  const paymentTerm = header.terms && companyToken
-    ? `${companyToken};${String(header.terms).trim()}`
-    : header.terms ? String(header.terms).trim() : null;
+  const supplierToken = String(header.supplier_id).trim()
+  const paymentTerm = String(header.terms).trim()
   const referenceNameParts = [header.first_name, header.last_name]
     .filter((part) => part && String(part).trim());
   const requestedByName = referenceNameParts.join(' ').trim() || null;

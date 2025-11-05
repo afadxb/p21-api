@@ -106,8 +106,9 @@ line rows inside a single SQL Server transaction.
 The request body can either provide a single `{ "header": { ... }, "lines": [] }`
 object or an object with an `orders` array containing multiple entries. Header
 objects must include `customerId`, `companyId`, `salesLocationId`, `approved`,
-`shipToId`, and `contractNumber`. Each line must include `lineNo`, `itemId`,
-`unitQuantity`, and `unitOfMeasure`.
+`shipToId`, and `contractNumber`. Each line must include `itemId`,
+`unitQuantity`, and `unitOfMeasure`. Line numbers are automatically assigned in
+the order the lines appear in the payload.
 
 Example payload for multiple orders:
 
@@ -127,7 +128,6 @@ curl -X POST http://localhost:3000/v1/sales/order \
         },
         "lines": [
           {
-            "lineNo": "1",
             "itemId": "MAT-00045",
             "unitQuantity": "10",
             "unitOfMeasure": "EA"
@@ -159,8 +159,9 @@ line rows inside a single SQL Server transaction.
 The request body can either provide a single `{ "header": { ... }, "lines": [] }`
 object or an object with an `orders` array containing multiple entries. Header
 objects must include `customerId`, `companyId`, `salesLocationId`, `approved`,
-`shipToId`, and `contractNumber`. Each line must include `lineNo`, `itemId`,
-`unitQuantity`, and `unitOfMeasure`.
+`shipToId`, and `contractNumber`. Each line must include `itemId`,
+`unitQuantity`, and `unitOfMeasure`. Line numbers are automatically assigned in
+the order the lines appear in the payload.
 
 Example payload for multiple orders:
 
@@ -180,7 +181,6 @@ curl -X POST http://localhost:3000/v1/sales/order \
         },
         "lines": [
           {
-            "lineNo": "1",
             "itemId": "MAT-00045",
             "unitQuantity": "10",
             "unitOfMeasure": "EA"

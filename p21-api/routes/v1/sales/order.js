@@ -207,12 +207,6 @@ router.post('/', async (req, res) => {
         if (isEmpty(headerValues.approved)) {
           headerValues.approved = 'N';
         }
-        const lineValues = order.lines.map((line, index) => ({
-          ...line,
-          importSetNo: currentImportSetNo,
-          lineNo: index + 1
-        }));
-
         const headerRequest = new sql.Request(transaction);
         headerFields.forEach((field) => {
           headerRequest.input(
@@ -227,7 +221,13 @@ router.post('/', async (req, res) => {
           VALUES (${headerParamList});
         `);
 
-        for (const line of lineValues) {
+        let linesInserted = 0;
+        for (const [index, originalLine] of order.lines.entries()) {
+          const line = {
+            ...originalLine,
+            importSetNo: currentImportSetNo,
+            lineNo: index + 1
+          };
           const lineRequest = new sql.Request(transaction);
           lineFields.forEach((field) => {
             lineRequest.input(
@@ -240,11 +240,12 @@ router.post('/', async (req, res) => {
             INSERT INTO TMP_OE_Line (${lineColumnList})
             VALUES (${lineParamList});
           `);
+          linesInserted += 1;
         }
 
         responseOrders.push({
           importSetNo: currentImportSetNo,
-          linesInserted: lineValues.length
+          linesInserted
         });
       }
 

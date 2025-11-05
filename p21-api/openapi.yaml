@@ -40,8 +40,7 @@ paths:
                     shipToId: 123001
                     contractNumber: 27
                   lines:
-                    - lineNo: 1
-                      itemId: SKU-ABC-123
+                    - itemId: SKU-ABC-123
                       unitQuantity: 5
                       unitOfMeasure: EA
               singleOrderPriced:
@@ -54,8 +53,7 @@ paths:
                     shipToId: 123001
                     # contractNumber intentionally omitted
                   lines:
-                    - lineNo: 1
-                      itemId: SKU-ABC-123
+                    - itemId: SKU-ABC-123
                       unitQuantity: 5
                       unitOfMeasure: EA
                       unitPrice: "12.5"
@@ -79,8 +77,7 @@ paths:
                         promiseDate: "20251030"
                         # ... include any other non-derived header fields you accept ...
                       lines:
-                        - lineNo: 1
-                          itemId: SKU-ABC-123
+                        - itemId: SKU-ABC-123
                           unitQuantity: 5
                           unitOfMeasure: EA
                           unitPrice: "10.5"
@@ -91,8 +88,7 @@ paths:
                           commissionCostEdited: "N"
                           otherCostEdited: "N"
                           captureUsage: "N"
-                        - lineNo: 2
-                          itemId: SKU-XYZ-789
+                        - itemId: SKU-XYZ-789
                           unitQuantity: 2
                           unitOfMeasure: EA
                           unitPrice: "25"
@@ -954,9 +950,10 @@ components:
         lineNo:
           type: number
           format: double
+          readOnly: true
           description: |
-            Line_No. Required. Positional number for the line within the order (for example, enter `3`
-            when the item appears on line 3 of the order).
+            Line_No. Automatically assigned sequentially by the API in the order the lines appear in the
+            request payload. Clients may omit this field when submitting orders.
         itemId:
           type: string
           maxLength: 40
@@ -1151,7 +1148,6 @@ components:
             calculated promise date, both values display in Quote Entry and Order Entry. Calculations consider item
             availability, lead time, transit days, and packing basis.
       required:
-        - lineNo
         - itemId
         - unitQuantity
         - unitOfMeasure

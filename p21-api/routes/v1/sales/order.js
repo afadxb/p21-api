@@ -57,7 +57,7 @@ const headerFields = [
 
 const lineFields = [
   { column: 'Import_Set_Number', key: 'importSetNo', type: sql.NVarChar(8), derived: true },
-  { column: 'Line_No', key: 'lineNo', type: sql.Decimal(18, 2), required: true, numeric: true },
+  { column: 'Line_No', key: 'lineNo', type: sql.Decimal(18, 2), required: true, numeric: true, derived: true },
   { column: 'Item_ID', key: 'itemId', type: sql.NVarChar(40), required: true },
   { column: 'Unit_Quantity', key: 'unitQuantity', type: sql.Decimal(18, 2), required: true, numeric: true },
   { column: 'Unit_of_Measure', key: 'unitOfMeasure', type: sql.NVarChar(8), required: true },
@@ -207,11 +207,6 @@ router.post('/', async (req, res) => {
         if (isEmpty(headerValues.approved)) {
           headerValues.approved = 'N';
         }
-        const lineValues = order.lines.map((line) => ({
-          ...line,
-          importSetNo: currentImportSetNo
-        }));
-
         const headerRequest = new sql.Request(transaction);
         headerFields.forEach((field) => {
           headerRequest.input(
@@ -226,7 +221,13 @@ router.post('/', async (req, res) => {
           VALUES (${headerParamList});
         `);
 
-        for (const line of lineValues) {
+        let linesInserted = 0;
+        for (const [index, originalLine] of order.lines.entries()) {
+          const line = {
+            ...originalLine,
+            importSetNo: currentImportSetNo,
+            lineNo: index + 1
+          };
           const lineRequest = new sql.Request(transaction);
           lineFields.forEach((field) => {
             lineRequest.input(
@@ -239,11 +240,12 @@ router.post('/', async (req, res) => {
             INSERT INTO TMP_OE_Line (${lineColumnList})
             VALUES (${lineParamList});
           `);
+          linesInserted += 1;
         }
 
         responseOrders.push({
           importSetNo: currentImportSetNo,
-          linesInserted: lineValues.length
+          linesInserted
         });
       }
 

@@ -57,7 +57,7 @@ const headerFields = [
 
 const lineFields = [
   { column: 'Import_Set_Number', key: 'importSetNo', type: sql.NVarChar(8), derived: true },
-  { column: 'Line_No', key: 'lineNo', type: sql.Decimal(18, 2), required: true, numeric: true },
+  { column: 'Line_No', key: 'lineNo', type: sql.Decimal(18, 2), required: true, numeric: true, derived: true },
   { column: 'Item_ID', key: 'itemId', type: sql.NVarChar(40), required: true },
   { column: 'Unit_Quantity', key: 'unitQuantity', type: sql.Decimal(18, 2), required: true, numeric: true },
   { column: 'Unit_of_Measure', key: 'unitOfMeasure', type: sql.NVarChar(8), required: true },
@@ -207,9 +207,10 @@ router.post('/', async (req, res) => {
         if (isEmpty(headerValues.approved)) {
           headerValues.approved = 'N';
         }
-        const lineValues = order.lines.map((line) => ({
+        const lineValues = order.lines.map((line, index) => ({
           ...line,
-          importSetNo: currentImportSetNo
+          importSetNo: currentImportSetNo,
+          lineNo: index + 1
         }));
 
         const headerRequest = new sql.Request(transaction);

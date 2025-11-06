@@ -70,35 +70,84 @@ const safeNumber = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
-const formatLine = (line, headerContext) => {
-  const quantity = safeNumber(line.qty_ordered) ?? 0;
-  const unitPrice = safeNumber(line.unit_price) ?? 0;
-  const amount = quantity * unitPrice;
+const toBooleanFlag = (value) => value === 'Y';
 
-  const companyCode = headerContext.company_no === null || headerContext.company_no === undefined
-    ? null
-    : String(headerContext.company_no).trim() || null;
+const formatLine = (line, headerContext) => {
+  const quantityOrdered = safeNumber(line.qty_ordered) ?? 0;
+  const quantityReceived = safeNumber(line.qty_received) ?? 0;
+  const quantityToVouch = safeNumber(line.qty_to_vouch);
+  const unitPrice = safeNumber(line.unit_price) ?? 0;
+  const amount = quantityOrdered * unitPrice;
+  const unitSize = safeNumber(line.unit_size);
+  const unitQuantity = safeNumber(line.unit_quantity);
+  const pricingUnitSize = safeNumber(line.pricing_unit_size);
+  const baseUnitPrice = safeNumber(line.base_ut_price);
+  const unitPriceDisplay = safeNumber(line.unit_price_display);
+  const isCanceled = toBooleanFlag(line.cancel_flag);
+  const isComplete = toBooleanFlag(line.complete);
+  const isClosed = toBooleanFlag(line.closed_flag);
+  const isVouchCompleted = toBooleanFlag(line.vouch_completed);
+  const quantityChanged = toBooleanFlag(line.quantity_changed);
 
   return {
     erpSourceId: process.env.ERP_SOURCE_ID || 'P21',
     externalSystemId: `${headerContext.po_no};${String(line.line_no).trim()}`,
-    isActive: line.delete_flag !== 'Y',
+    isActive: line.delete_flag !== 'Y' && !isCanceled,
     amount,
     dimensions: line.gl_account_no ? String(line.gl_account_no).trim() : null,
+    glAccountNumber: line.gl_account_no ? String(line.gl_account_no).trim() : null,
     itemDescription: line.item_desc ? String(line.item_desc).trim() : null,
     itemNumber: line.item_id ? String(line.item_id).trim() : null,
     lineNumber: String(line.line_no).trim(),
     itemId: line.inv_mast_uid ? String(line.inv_mast_uid).trim() : '',
-    quantity,
-    unitSize: safeNumber(line.unit_size) ?? safeNumber(line.unit_quantity),
+    invMastUid: line.inv_mast_uid ? String(line.inv_mast_uid).trim() : null,
+    purchaseOrderNumber: headerContext.po_no ? String(headerContext.po_no).trim() : null,
+    companyNumber: headerContext.company_no === null || headerContext.company_no === undefined
+      ? null
+      : String(headerContext.company_no).trim() || null,
+    quantity: quantityOrdered,
+    quantityOrdered,
+    qtyOrdered: quantityOrdered,
+    quantityReceived,
+    qtyReceived: quantityReceived,
+    quantityToVouch,
+    qtyToVouch: quantityToVouch,
+    unitSize: unitSize ?? unitQuantity,
+    unitQuantity,
     unit: line.unit_of_measure ? String(line.unit_of_measure).trim() : null,
+    unitOfMeasure: line.unit_of_measure ? String(line.unit_of_measure).trim() : null,
+    pricingUnit: line.pricing_unit ? String(line.pricing_unit).trim() : null,
+    pricingUnitSize,
     unitPrice,
+    unitPriceDisplay,
+    baseUtPrice: baseUnitPrice,
+    baseUnitPrice,
+    manufacturerPartNumber: line.mfg_part_no ? String(line.mfg_part_no).trim() : null,
+    mfgPartNo: line.mfg_part_no ? String(line.mfg_part_no).trim() : null,
+    dueDate: toIsoString(line.date_due),
+    dateDue: toIsoString(line.date_due),
+    createdDate: toIsoString(line.date_created),
+    dateCreated: toIsoString(line.date_created),
+    lastModifiedDate: toIsoString(line.date_last_modified),
+    dateLastModified: toIsoString(line.date_last_modified),
+    requiredDate: toIsoString(line.required_date),
+    isComplete,
+    complete: isComplete,
+    isCanceled,
+    cancelFlag: isCanceled,
+    isClosed,
+    closedFlag: isClosed,
+    isVouchCompleted,
+    vouchCompleted: isVouchCompleted,
+    quantityChanged,
+    deleteFlag: line.delete_flag === 'Y',
     reference: headerContext.requested_by_name || null,
     reference2: headerContext.po_desc || null,
     taxIndicator1: (line.tax_group_id ? String(line.tax_group_id).trim() || null : null),
+    taxGroupId: line.tax_group_id ? String(line.tax_group_id).trim() || null : null,
     taxIndicator2: null,
     isServiceBased: false,
-    isTwoWayMatch: line.vouch_completed === 'Y' ? false : true
+    isTwoWayMatch: !isVouchCompleted
   };
 };
 
@@ -127,7 +176,9 @@ const buildHeaderResponse = (header, lineMap, commentMap) => {
 
   const headerKey = getPoKey(header.po_no);
 
-  const lines = (lineMap.get(headerKey) || [])
+  const rawLines = lineMap.get(headerKey) || [];
+
+  const lines = rawLines
     .map((line) => formatLine(line, baseContext))
     .sort((a, b) => {
       const aLine = Number(a.lineNumber);
@@ -138,7 +189,13 @@ const buildHeaderResponse = (header, lineMap, commentMap) => {
       return aLine - bLine;
     });
 
-  const amount = lines.reduce((total, line) => total + (safeNumber(line.amount) || 0), 0);
+  const amount = rawLines
+    .filter((line) => line.cancel_flag !== 'Y')
+    .reduce((total, line) => {
+      const quantity = safeNumber(line.qty_ordered) ?? 0;
+      const unitPrice = safeNumber(line.unit_price) ?? 0;
+      return total + (quantity * unitPrice);
+    }, 0);
 
   const comments = (commentMap.get(headerKey) || [])
     .map((comment) => formatComment(comment, header))

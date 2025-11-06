@@ -6,11 +6,10 @@ This repository contains a minimal Express server exposing a handful of routes u
 
 1. Install Node.js 14+.
 
-2. Copy `p21-api/.env.example` to `p21-api/.env` and update the SQL connection details. Environment variables will be loaded from this file automatically.
+2. Copy `.env.example` to `.env` and update the SQL connection details. Environment variables will be loaded from this file automatically.
 
-3. Install dependencies and start the API from the `p21-api` directory:
+3. Install dependencies and start the API from the repository root:
    ```bash
-   cd p21-api
    npm install
    PORT=3000 npm start
    ```
@@ -23,7 +22,7 @@ This repository contains a minimal Express server exposing a handful of routes u
 When the Express server starts it also launches a background job that scans the
 `TMP_OE_Header` and `TMP_OE_Line` staging tables every 30 minutes. Any import
 sets whose `TMP_OE_Header.Exported` flag is not `Y` are written to the
-`p21-api/exports/` directory as fixed-width text files named
+`exports/` directory as fixed-width text files named
 `SOH<Import_Set_No>.txt` for header records and `SOL<Import_Set_No>.txt` for line
 records. After the files are written, the job sets the `Exported` flag to `Y` so
 they are not exported again.
@@ -35,7 +34,7 @@ Use the following optional environment variables to customise the job:
 
 ### Swagger/OpenAPI URL
 
-When running locally with the default port, open `http://localhost:3000/docs` in your browser to view the interactive documentation. This UI is generated from the repository's `p21-api/openapi.yaml` specification file.
+When running locally with the default port, open `http://localhost:3000/docs` in your browser to view the interactive documentation. This UI is generated from the repository's `openapi.yaml` specification file.
 
 ## Routes
 
@@ -204,12 +203,12 @@ set number for each order along with the number of line rows inserted:
 ```
 
 ## Standalone `server.js`
-A simple `server.js` is provided in the `p21-api/` directory that mounts the Express routes for quick testing:
+A simple `server.js` is provided in the repository root that mounts the Express routes for quick testing:
 
 ```bash
-node p21-api/server.js
+node server.js
 # or
-PORT=4000 node p21-api/server.js
+PORT=4000 node server.js
 ```
 
 Access it at `http://localhost:<PORT>`.
@@ -218,17 +217,17 @@ Access it at `http://localhost:<PORT>`.
 
 An example `docker-compose.yml` is included for running Kong, Mongo, and the API
 services together. The `p21-api` service reads its environment variables from
-`p21-api/.env`:
+`.env`:
 
 ```yaml
   p21-api:
     build:
-      context: ./p21-api
+      context: .
     env_file:
-      - ./p21-api/.env
+      - ./.env
 ```
 
-Create `p21-api/.env` before starting Compose:
+Create `.env` before starting Compose:
 
 ```bash
 docker compose up -d

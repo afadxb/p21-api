@@ -76,13 +76,13 @@ services:
 
   p21-api:
     build:
-      context: ./p21-api
+      context: .
     container_name: p21-api
     ports:
       - "3000:3000"
     restart: always
     env_file:
-      - ./p21-api/.env
+      - ./.env
 
 volumes:
   kong-db-data:

@@ -81,6 +81,27 @@ const roundToDecimals = (value, decimals = 2) => {
 
 const toBooleanFlag = (value) => value === 'Y';
 
+const calculateAmount = (
+  quantityOrdered,
+  unitSizeValue,
+  unitQuantityValue,
+  pricingUnitSizeValue,
+  unitPriceValue
+) => {
+  const qty = quantityOrdered ?? 0;
+  const price = unitPriceValue ?? 0;
+
+  if (qty === 0 || price === 0) {
+    return 0;
+  }
+
+  const effectiveUnitSize = unitSizeValue ?? unitQuantityValue ?? 1;
+  const effectivePricingUnitSize =
+    pricingUnitSizeValue && pricingUnitSizeValue !== 0 ? pricingUnitSizeValue : 1;
+
+  return ((qty * effectiveUnitSize) / effectivePricingUnitSize) * price;
+};
+
 const formatLine = (line, headerContext) => {
   const quantityOrdered = safeNumber(line.qty_ordered) ?? 0;
   const quantityReceived = safeNumber(line.qty_received) ?? 0;
@@ -89,7 +110,9 @@ const formatLine = (line, headerContext) => {
   const unitQuantity = safeNumber(line.unit_quantity);
   const pricingUnitSize = safeNumber(line.pricing_unit_size);
   const unitPrice = safeNumber(line.unit_price) ?? 0;
-  const amount = roundToDecimals(quantityOrdered * unitPrice);
+  const amount = roundToDecimals(
+    calculateAmount(quantityOrdered, unitSize, unitQuantity, pricingUnitSize, unitPrice)
+  );
   const baseUnitPrice = safeNumber(line.base_ut_price);
   const unitPriceDisplay = safeNumber(line.unit_price_display);
   const isCanceled = toBooleanFlag(line.cancel_flag);
@@ -170,10 +193,19 @@ const buildHeaderResponse = (header, lineMap, commentMap) => {
   const amount = roundToDecimals(rawLines
     .filter((line) => line.cancel_flag !== 'Y')
     .reduce((total, line) => {
-      const quantity = safeNumber(line.qty_ordered) ?? 0;
-      const unitPrice = safeNumber(line.unit_price) ?? 0;
-      const pricingUnitSize = safeNumber(line.pricing_unit_size) ?? 0;
-      return total + (quantity * unitPrice/pricingUnitSize);
+      const quantity = safeNumber(line.qty_ordered);
+      const unitSize = safeNumber(line.unit_size);
+      const unitQuantity = safeNumber(line.unit_quantity);
+      const pricingUnitSize = safeNumber(line.pricing_unit_size);
+      const unitPrice = safeNumber(line.unit_price);
+
+      return total + calculateAmount(
+        quantity,
+        unitSize,
+        unitQuantity,
+        pricingUnitSize,
+        unitPrice
+      );
     }, 0));
 
   const comments = (commentMap.get(headerKey) || [])

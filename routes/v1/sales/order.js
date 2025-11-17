@@ -210,6 +210,9 @@ router.post('/', async (req, res) => {
         if (isEmpty(headerValues.approved)) {
           headerValues.approved = 'N';
         }
+        if (isEmpty(headerValues.taker)) {
+          headerValues.taker = 'API';
+        }     
         const headerRequest = new sql.Request(transaction);
         headerFields.forEach((field) => {
           headerRequest.input(

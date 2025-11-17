@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
+const { apiKeyAuth } = require('../../../middleware/apiKeyAuth');
+
+router.use(apiKeyAuth('/v1/ap/purchaseorders'));
 
 const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 2000;

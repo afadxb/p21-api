@@ -17,6 +17,18 @@ This repository contains a minimal Express server exposing a handful of routes u
    
 4. Access the Swagger UI at `http://localhost:<PORT>/docs` for interactive API documentation.
 
+## Authentication
+
+Certain routes (starting with `/v1/sales/order`) now require an API key. Clients
+must send the key in the `x-api-key` request header. Keys and their permitted
+routes are defined in `config/apiClients.js`. The sample configuration grants
+the client named `SRX` access to `POST /v1/sales/order` using the key
+`s2bJT4Up6JeFou5jVVj8xcHgrWVhBOsW` and the client named `Medius` access to the
+`/v1/ap/purchaseorders`, `/v1/ap/suppliers`, and `/v1/ap/paymentterms` endpoints
+using the key `XXXX`. Override these sample keys in production by setting the
+corresponding environment variables (for example `API_KEY_SRX` or
+`API_KEY_MEDIUS`).
+
 ### TMP_OE export job
 
 When the Express server starts it also launches a background job that scans the

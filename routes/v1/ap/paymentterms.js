@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
+const { apiKeyAuth } = require('../../../middleware/apiKeyAuth');
+
+router.use(apiKeyAuth('/v1/ap/paymentterms'));
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 500;

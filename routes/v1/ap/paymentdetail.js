@@ -8,6 +8,21 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 2000;
 
+const mapCurrencyIdToCode = (currencyId) => {
+  switch (currencyId) {
+    case 1:
+      return 'CAD';
+    case 3:
+      return 'USD';
+    case 4:
+      return 'EUR';
+    case 6:
+      return 'CNY';
+    default:
+      return currencyId != null ? String(currencyId).trim() : null;
+  }
+};
+
 const parsePositiveInt = (value, defaultValue) => {
   const parsed = parseInt(value, 10);
   if (Number.isNaN(parsed) || parsed < 1) {
@@ -33,7 +48,7 @@ const formatPaymentDetailRow = (row) => ({
   voucherNumber: row.voucher_no ? String(row.voucher_no).trim() : null,
   checkNumber: row.check_no ? String(row.check_no).trim() : null,
   checkDate: toIsoString(row.check_date),
-  currencyId: row.currency_id != null ? String(row.currency_id).trim() : null,
+  currency: row.currency ? String(row.currency).trim() : mapCurrencyIdToCode(row.currency_id),
   voucherRefInvoiceNumber: row.voucher_ref_inv_no ? String(row.voucher_ref_inv_no).trim() : null,
   apAccountNumber: row.ap_account_no ? String(row.ap_account_no).trim() : null,
   cashAccountNumber: row.cash_account_no ? String(row.cash_account_no).trim() : null,
@@ -63,7 +78,7 @@ const groupPaymentDetails = (rows) => {
         voucherNumber: formatted.voucherNumber,
         checkNumber: formatted.checkNumber,
         checkDate: formatted.checkDate,
-        currencyId: formatted.currencyId,
+        currency: formatted.currency,
         voucherRefInvoiceNumber: formatted.voucherRefInvoiceNumber,
         apAccountNumber: formatted.apAccountNumber,
         cashAccountNumber: formatted.cashAccountNumber,
@@ -182,7 +197,13 @@ router.get('/', async (req, res) => {
         ph.voucher_no,
         ph.check_no,
         ph.check_date,
-        ph.currency_id,
+        CASE ph.currency_id
+          WHEN 1 THEN 'CAD'
+          WHEN 3 THEN 'USD'
+          WHEN 4 THEN 'EUR'
+          WHEN 6 THEN 'CNY'
+          ELSE NULL
+        END AS currency,
         ph.voucher_ref_inv_no,
         ph.ap_account_no,
         ph.cash_account_no,

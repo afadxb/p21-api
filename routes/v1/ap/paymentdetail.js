@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
-// const { apiKeyAuth } = require('../../../middleware/apiKeyAuth');
-// router.use(apiKeyAuth('/v1/sales/order'));
+const { apiKeyAuth } = require('../../../middleware/apiKeyAuth');
+
+router.use(apiKeyAuth('/v1/ap/paymentdetail'));
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 500;
@@ -24,7 +25,7 @@ const toIsoString = (value) => {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 };
 
-const formatPaymentDetail = (row) => ({
+const formatPaymentDetailRow = (row) => ({
   companyNumber: row.company_no ? String(row.company_no).trim() : null,
   vendorId: row.vendor_id ? String(row.vendor_id).trim() : null,
   invoiceNumber: row.invoice_no ? String(row.invoice_no).trim() : null,
@@ -45,6 +46,54 @@ const formatPaymentDetail = (row) => ({
   termsAmountTaken: row.terms_amount_taken != null ? Number(row.terms_amount_taken) : null,
   amountPaidDisplay: row.amount_paid_display != null ? Number(row.amount_paid_display) : null
 });
+
+const groupPaymentDetails = (rows) => {
+  const groupedByVoucher = new Map();
+
+  rows.forEach((row) => {
+    const formatted = formatPaymentDetailRow(row);
+    const voucherKey = formatted.voucherNumber ?? `__unknown_${groupedByVoucher.size}`;
+
+    if (!groupedByVoucher.has(voucherKey)) {
+      groupedByVoucher.set(voucherKey, {
+        companyNumber: formatted.companyNumber,
+        vendorId: formatted.vendorId,
+        invoiceNumber: formatted.invoiceNumber,
+        invoiceDate: formatted.invoiceDate,
+        invoiceAmount: formatted.invoiceAmount,
+        voucherNumber: formatted.voucherNumber,
+        checkNumber: formatted.checkNumber,
+        checkDate: formatted.checkDate,
+        currencyId: formatted.currencyId,
+        voucherRefInvoiceNumber: formatted.voucherRefInvoiceNumber,
+        apAccountNumber: formatted.apAccountNumber,
+        cashAccountNumber: formatted.cashAccountNumber,
+        approved: formatted.approved,
+        poNumber: formatted.poNumber,
+        PaymentLine: []
+      });
+    }
+
+    const hasPaymentDetail =
+      formatted.amountPaid != null ||
+      formatted.homeAmountPaid != null ||
+      formatted.termsAmountTaken != null ||
+      formatted.amountPaidDisplay != null ||
+      row.paid_in_full != null;
+
+    if (hasPaymentDetail) {
+      groupedByVoucher.get(voucherKey).PaymentLine.push({
+        paidInFull: formatted.paidInFull,
+        amountPaid: formatted.amountPaid,
+        homeAmountPaid: formatted.homeAmountPaid,
+        termsAmountTaken: formatted.termsAmountTaken,
+        amountPaidDisplay: formatted.amountPaidDisplay
+      });
+    }
+  });
+
+  return Array.from(groupedByVoucher.values());
+};
 
 router.get('/', async (req, res) => {
   const page = parsePositiveInt(req.query.page, DEFAULT_PAGE);
@@ -101,31 +150,54 @@ router.get('/', async (req, res) => {
     });
 
     const query = `
+      WITH filtered_headers AS (
+        SELECT
+          apinv_hdr.company_no,
+          apinv_hdr.vendor_id,
+          apinv_hdr.invoice_no,
+          apinv_hdr.invoice_date,
+          apinv_hdr.invoice_amount,
+          apinv_hdr.voucher_no,
+          apinv_hdr.check_no,
+          apinv_hdr.check_date,
+          apinv_hdr.currency_id,
+          apinv_hdr.voucher_ref_inv_no,
+          apinv_hdr.ap_account_no,
+          apinv_hdr.cash_account_no,
+          apinv_hdr.approved,
+          apinv_hdr.po_no,
+          apinv_hdr.paid_in_full
+        FROM apinv_hdr
+        ${whereClause}
+      ),
+      paged_headers AS (
+        SELECT *, ROW_NUMBER() OVER (ORDER BY invoice_date DESC, voucher_no) AS rn
+        FROM filtered_headers
+      )
       SELECT
-        apinv_hdr.company_no,
-        apinv_hdr.vendor_id,
-        apinv_hdr.invoice_no,
-        apinv_hdr.invoice_date,
-        apinv_hdr.invoice_amount,
-        apinv_hdr.voucher_no,
-        apinv_hdr.check_no,
-        apinv_hdr.check_date,
-        apinv_hdr.currency_id,
-        apinv_hdr.voucher_ref_inv_no,
-        apinv_hdr.ap_account_no,
-        apinv_hdr.cash_account_no,
-        apinv_hdr.approved,
-        apinv_hdr.po_no,
-        apinv_hdr.paid_in_full,
+        ph.company_no,
+        ph.vendor_id,
+        ph.invoice_no,
+        ph.invoice_date,
+        ph.invoice_amount,
+        ph.voucher_no,
+        ph.check_no,
+        ph.check_date,
+        ph.currency_id,
+        ph.voucher_ref_inv_no,
+        ph.ap_account_no,
+        ph.cash_account_no,
+        ph.approved,
+        ph.po_no,
+        ph.paid_in_full,
         payment_detail.amount_paid,
         payment_detail.home_amt_paid,
         payment_detail.terms_amount_taken,
         payment_detail.amount_paid_display
-      FROM apinv_hdr
-      INNER JOIN payment_detail ON apinv_hdr.voucher_no = payment_detail.voucher_no
-      ${whereClause}
-      ORDER BY apinv_hdr.invoice_date DESC, apinv_hdr.voucher_no
-      OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
+      FROM paged_headers ph
+      LEFT JOIN payment_detail ON ph.voucher_no = payment_detail.voucher_no
+      WHERE ph.rn BETWEEN @offset + 1 AND @offset + @limit
+      ORDER BY ph.invoice_date DESC, ph.voucher_no, ph.rn;
     `;
 
     const dataResult = await dataRequest.query(query);
@@ -136,16 +208,18 @@ router.get('/', async (req, res) => {
     });
 
     const countQuery = `
-      SELECT COUNT(*) AS total
-      FROM apinv_hdr
-      INNER JOIN payment_detail ON apinv_hdr.voucher_no = payment_detail.voucher_no
-      ${whereClause};
+      WITH filtered_headers AS (
+        SELECT apinv_hdr.voucher_no
+        FROM apinv_hdr
+        ${whereClause}
+      )
+      SELECT COUNT(*) AS total FROM filtered_headers;
     `;
 
     const countResult = await countRequest.query(countQuery);
     const total = countResult.recordset[0] ? Number(countResult.recordset[0].total) : 0;
 
-    const paymentDetails = dataResult.recordset.map(formatPaymentDetail);
+    const paymentDetails = groupPaymentDetails(dataResult.recordset);
 
     return res.json({ paymentDetails, page, pageSize: limit, total });
   } catch (error) {

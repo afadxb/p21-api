@@ -474,7 +474,7 @@ paths:
       summary: List payment details
       description: |
         Returns payment detail records joined from `apinv_hdr` and `payment_detail`, including invoice
-        header information and corresponding payment amounts.
+        header information and corresponding payment amounts grouped into payment lines.
       parameters:
         - in: query
           name: page
@@ -525,25 +525,26 @@ paths:
                 $ref: '#/components/schemas/PaymentDetailListResponse'
               example:
                 paymentDetails:
-                  - companyNumber: "001"
-                    vendorId: "SUP1001"
-                    invoiceNumber: "INV12345"
-                    invoiceDate: "2024-03-01T00:00:00.000Z"
-                    invoiceAmount: 1500.5
-                    voucherNumber: "VCH9876"
-                    checkNumber: "CHK54321"
-                    checkDate: "2024-03-10T00:00:00.000Z"
-                    currencyId: "USD"
-                    voucherRefInvoiceNumber: "INV0001"
-                    apAccountNumber: "2000"
-                    cashAccountNumber: "1000"
+                  - companyNumber: "ABS"
+                    vendorId: "110087"
+                    invoiceNumber: "THC5100085"
+                    invoiceDate: "2025-10-28T00:00:00.000Z"
+                    invoiceAmount: 49039.38
+                    voucherNumber: "1486897"
+                    checkNumber: "022375"
+                    checkDate: "2025-10-28T09:40:37.000Z"
+                    currencyId: "3"
+                    voucherRefInvoiceNumber: null
+                    apAccountNumber: "2017101001"
+                    cashAccountNumber: "1011101001"
                     approved: true
-                    poNumber: "PO123"
-                    paidInFull: false
-                    amountPaid: 1200.5
-                    homeAmountPaid: 1200.5
-                    termsAmountTaken: 50
-                    amountPaidDisplay: 1200.5
+                    poNumber: null
+                    PaymentLine:
+                      - paidInFull: true
+                        amountPaid: 49039.38
+                        homeAmountPaid: 49039.38
+                        termsAmountTaken: 0
+                        amountPaidDisplay: 35224.99
                 page: 1
                 pageSize: 500
                 total: 1
@@ -702,6 +703,28 @@ components:
           required: [page, pageSize, lastpage]
       required: [purchaseOrders, footer]
 
+    PaymentLine:
+      type: object
+      properties:
+        paidInFull:
+          type: boolean
+        amountPaid:
+          type: number
+          format: double
+          nullable: true
+        homeAmountPaid:
+          type: number
+          format: double
+          nullable: true
+        termsAmountTaken:
+          type: number
+          format: double
+          nullable: true
+        amountPaidDisplay:
+          type: number
+          format: double
+          nullable: true
+
     PaymentDetail:
       type: object
       properties:
@@ -749,24 +772,10 @@ components:
         poNumber:
           type: string
           nullable: true
-        paidInFull:
-          type: boolean
-        amountPaid:
-          type: number
-          format: double
-          nullable: true
-        homeAmountPaid:
-          type: number
-          format: double
-          nullable: true
-        termsAmountTaken:
-          type: number
-          format: double
-          nullable: true
-        amountPaidDisplay:
-          type: number
-          format: double
-          nullable: true
+        PaymentLine:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentLine'
 
     PaymentDetailListResponse:
       type: object

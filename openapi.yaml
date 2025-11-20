@@ -533,7 +533,7 @@ paths:
                     voucherNumber: "1486897"
                     checkNumber: "022375"
                     checkDate: "2025-10-28T09:40:37.000Z"
-                    currencyId: "3"
+                    currency: "USD"
                     voucherRefInvoiceNumber: null
                     apAccountNumber: "2017101001"
                     cashAccountNumber: "1011101001"
@@ -755,8 +755,9 @@ components:
           type: string
           format: date-time
           nullable: true
-        currencyId:
+        currency:
           type: string
+          description: Currency code such as CAD or USD.
           nullable: true
         voucherRefInvoiceNumber:
           type: string

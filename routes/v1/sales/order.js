@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
-const { apiKeyAuth } = require('../../../middleware/apiKeyAuth');
-
-router.use(apiKeyAuth('/v1/sales/order'));
+// const { apiKeyAuth } = require('../../../middleware/apiKeyAuth');
+// router.use(apiKeyAuth('/v1/sales/order'));
 
 const headerFields = [
   { column: 'Import_Set_No', key: 'importSetNo', type: sql.NVarChar(8), derived: true },

@@ -16,6 +16,7 @@ app.use('/pricing', require('./routes/pricing'));
 app.use('/v1/ap/suppliers', require('./routes/v1/ap/suppliers'));
 app.use('/v1/ap/paymentterms', require('./routes/v1/ap/paymentterms'));
 app.use('/v1/ap/purchaseorders', require('./routes/v1/ap/purchaseorders'));
+app.use('/v1/ap/paymentdetail', require('./routes/v1/ap/paymentdetail'));
 app.use('/v1/sales/order', require('./routes/v1/sales/order'));
 
 // Background jobs

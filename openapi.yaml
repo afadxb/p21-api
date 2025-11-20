@@ -468,6 +468,88 @@ paths:
         '500':
           description: Unexpected server error while retrieving the purchase order.
 
+  /v1/ap/paymentdetail:
+    get:
+      tags: [Accounts Payable]
+      summary: List payment details
+      description: |
+        Returns payment detail records joined from `apinv_hdr` and `payment_detail`, including invoice
+        header information and corresponding payment amounts.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 1-based page number.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 500
+          description: Maximum number of records to return per page. The value cannot exceed 2000.
+        - in: query
+          name: company
+          schema:
+            type: string
+          description: Filter by company number.
+        - in: query
+          name: vendor
+          schema:
+            type: string
+          description: Filter by vendor ID.
+        - in: query
+          name: voucherNo
+          schema:
+            type: string
+          description: Filter by voucher number.
+        - in: query
+          name: invoiceNo
+          schema:
+            type: string
+          description: Filter by invoice number.
+        - in: query
+          name: poNo
+          schema:
+            type: string
+          description: Filter by purchase order number.
+      responses:
+        '200':
+          description: Payment details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentDetailListResponse'
+              example:
+                paymentDetails:
+                  - companyNumber: "001"
+                    vendorId: "SUP1001"
+                    invoiceNumber: "INV12345"
+                    invoiceDate: "2024-03-01T00:00:00.000Z"
+                    invoiceAmount: 1500.5
+                    voucherNumber: "VCH9876"
+                    checkNumber: "CHK54321"
+                    checkDate: "2024-03-10T00:00:00.000Z"
+                    currencyId: "USD"
+                    voucherRefInvoiceNumber: "INV0001"
+                    apAccountNumber: "2000"
+                    cashAccountNumber: "1000"
+                    approved: true
+                    poNumber: "PO123"
+                    paidInFull: false
+                    amountPaid: 1200.5
+                    homeAmountPaid: 1200.5
+                    termsAmountTaken: 50
+                    amountPaidDisplay: 1200.5
+                page: 1
+                pageSize: 500
+                total: 1
+        '500':
+          description: Unexpected server error while retrieving payment details.
+
 components:
   # --- keep your existing components here ---
   schemas:
@@ -619,6 +701,90 @@ components:
               type: boolean
           required: [page, pageSize, lastpage]
       required: [purchaseOrders, footer]
+
+    PaymentDetail:
+      type: object
+      properties:
+        companyNumber:
+          type: string
+          nullable: true
+        vendorId:
+          type: string
+          nullable: true
+        invoiceNumber:
+          type: string
+          nullable: true
+        invoiceDate:
+          type: string
+          format: date-time
+          nullable: true
+        invoiceAmount:
+          type: number
+          format: double
+          nullable: true
+        voucherNumber:
+          type: string
+          nullable: true
+        checkNumber:
+          type: string
+          nullable: true
+        checkDate:
+          type: string
+          format: date-time
+          nullable: true
+        currencyId:
+          type: string
+          nullable: true
+        voucherRefInvoiceNumber:
+          type: string
+          nullable: true
+        apAccountNumber:
+          type: string
+          nullable: true
+        cashAccountNumber:
+          type: string
+          nullable: true
+        approved:
+          type: boolean
+        poNumber:
+          type: string
+          nullable: true
+        paidInFull:
+          type: boolean
+        amountPaid:
+          type: number
+          format: double
+          nullable: true
+        homeAmountPaid:
+          type: number
+          format: double
+          nullable: true
+        termsAmountTaken:
+          type: number
+          format: double
+          nullable: true
+        amountPaidDisplay:
+          type: number
+          format: double
+          nullable: true
+
+    PaymentDetailListResponse:
+      type: object
+      properties:
+        paymentDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentDetail'
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+      required: [paymentDetails, page, pageSize, total]
 
     SalesOrderHeader:
       type: object

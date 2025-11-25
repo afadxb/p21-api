@@ -28,7 +28,7 @@ const buildCompanyToken = (company) => {
   if (!company) {
     return null;
   }
-  return `company[${company}]`;
+  return String(company).trim();
 };
 
 const buildDiscountLine = (row) => ({

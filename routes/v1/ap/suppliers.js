@@ -41,7 +41,7 @@ const formatSupplierRecord = (row) => {
 
   return {
     erpSourceId: process.env.ERP_SOURCE_ID || 'P21',
-    externalSystemId: {supplierId} || null,
+    externalSystemId: row.supplierId || null,
     isActive: row.delete_flag !== 'Y',
     companyId: companyToken,
     currencyCode: row.currency_code || null,

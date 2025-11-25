@@ -25,7 +25,7 @@ const normalizeDate = (value) => {
 };
 
 const formatSupplierRecord = (row) => {
-  const companyToken = row.company_id ? `company[${row.company_id}]` : null;
+  const companyToken = row.company_id ? String(row.company_id).trim() : null;
   const supplierId = row.supplierId ? String(row.supplierId).trim() : null;
   const addressParts = [row.address1, row.address2].filter((part) => part && part.trim());
   const latestModified = [row.date_last_modified, row.terms_date_last_modified]
@@ -33,20 +33,20 @@ const formatSupplierRecord = (row) => {
     .filter(Boolean)
     .sort((a, b) => b - a)[0];
   const ledgerDimension = companyToken && row.ap_account_no
-    ? `${companyToken};DIMENSION1;${row.ap_account_no}`
+    ? `${row.ap_account_no}`
     : null;
   const taxDimension = companyToken && row.default_purch_acct_no
-    ? `${companyToken};DIMENSION1;${row.default_purch_acct_no}`
+    ? `${row.default_purch_acct_no}`
     : null;
 
   return {
     erpSourceId: process.env.ERP_SOURCE_ID || 'P21',
-    externalSystemId: companyToken && supplierId ? `${companyToken};${supplierId}` : supplierId,
+    externalSystemId: {supplierId} || null,
     isActive: row.delete_flag !== 'Y',
     companyId: companyToken,
     currencyCode: row.currency_code || null,
     name: row.name || null,
-    paymentTerm: companyToken && row.terms_id ? `${companyToken};${row.terms_id}` : row.terms_id || null,
+    paymentTerm: row.terms_id || null,
     supplierId,
     ledgerDimension1: ledgerDimension,
     taxDimension1: taxDimension,

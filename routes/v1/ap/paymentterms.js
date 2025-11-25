@@ -24,13 +24,6 @@ const normalizeDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const buildCompanyToken = (company) => {
-  if (!company) {
-    return null;
-  }
-  return String(company).trim();
-};
-
 const buildDiscountLine = (row) => ({
   cashDiscountPercentage: row.discount_pct != null ? Number(row.discount_pct) * 100 : 0,
   endOfMonth: Boolean(row.day_of_month),
@@ -57,7 +50,7 @@ router.get('/', async (req, res) => {
   const endRow = offset + pageSize;
 
   const updatedSinceParam = req.query.updated_since;
-  const companyParam = typeof req.query.company === 'string' ? req.query.company.trim() : null;
+  const companyIdParam = typeof req.query.companyId === 'string' ? req.query.companyId.trim() : null;
 
   let updatedSinceDate = null;
   if (updatedSinceParam) {
@@ -160,7 +153,6 @@ router.get('/', async (req, res) => {
       grouped.get(key).push(row);
     });
 
-    const companyToken = buildCompanyToken(companyParam);
     const erpSourceId = process.env.ERP_SOURCE_ID || 'P21';
 
     const paymentTerms = Array.from(grouped.entries()).map(([termsId, rows]) => {
@@ -195,10 +187,10 @@ router.get('/', async (req, res) => {
 
       const payload = {
         erpSourceId,
-        externalSystemId: companyToken ? `${companyToken};${termsId}` : termsId,
+        externalSystemId: companyIdParam ? `${companyIdParam};${termsId}` : termsId,
         isActive: true,
         lines,
-        companyId: companyToken,
+        companyId: companyIdParam,
         paymentTermId: termsId,
         name: baseRow.terms_desc || termsId,
         description: baseRow.terms_desc || termsId

@@ -167,7 +167,10 @@ const formatComment = (comment, headerContext) => {
 
 const buildHeaderResponse = (header, lineMap, commentMap) => {
   const companyToken = buildCompanyToken(header.company_no);
-  const supplierToken = String(header.supplier_id).trim()
+  const vendorToken =
+    header.vendor_id === null || header.vendor_id === undefined
+      ? null
+      : String(header.vendor_id).trim();
   const paymentTerm = String(header.terms).trim()
   const referenceNameParts = [header.first_name, header.last_name]
     .filter((part) => part && String(part).trim());
@@ -225,7 +228,7 @@ const buildHeaderResponse = (header, lineMap, commentMap) => {
     orderIdentifier2: header.external_po_no ? String(header.external_po_no).trim() : '',
     registerDate: toIsoString(header.order_date),
     dueDate: toIsoString(header.date_due),
-    supplier: supplierToken,
+    vendor: vendorToken,
     reference: requestedByName,
     reference2: header.po_desc ? String(header.po_desc).trim() : '',
     paymentTerm,
@@ -276,9 +279,9 @@ const fetchPurchaseOrders = async (filters, options = {}) => {
     whereFragments.push('po_hdr.company_no = @companyNo');
     headerRequest.input('companyNo', sql.VarChar, filters.company);
   }
-  if (filters.supplier) {
-    whereFragments.push('po_hdr.supplier_id = @supplierId');
-    headerRequest.input('supplierId', sql.VarChar, filters.supplier);
+  if (filters.vendor) {
+    whereFragments.push('po_hdr.vendor_id = @vendorId');
+    headerRequest.input('vendorId', sql.VarChar, filters.vendor);
   }
   if (filters.updatedSince) {
     whereFragments.push('po_hdr.date_last_modified >= @updatedSince');
@@ -300,7 +303,6 @@ const fetchPurchaseOrders = async (filters, options = {}) => {
       po_hdr.po_no,
       po_hdr.company_no,
       po_hdr.vendor_id,
-      po_hdr.supplier_id,
       po_hdr.location_id,
       po_hdr.requested_by,
       po_hdr.order_date,
@@ -451,9 +453,9 @@ router.get('/', async (req, res) => {
     if (companyQuery) {
       filters.company = String(companyQuery).trim();
     }
-    const supplierQuery = req.query.supplier || req.query.supplierId;
-    if (supplierQuery) {
-      filters.supplier = String(supplierQuery).trim();
+    const vendorQuery = req.query.vendor || req.query.vendorId;
+    if (vendorQuery) {
+      filters.vendor = String(vendorQuery).trim();
     }
     const poNumberQuery = req.query.po_no || req.query.poNo || req.query.poNumber;
     if (poNumberQuery) {

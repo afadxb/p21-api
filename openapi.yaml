@@ -278,9 +278,9 @@ paths:
       summary: List purchase orders
       description: |
         Returns Prophet 21 purchase order headers with nested line and comment details.
-        Results can be filtered by company, supplier, purchase order number, and order dates.
+        Results can be filtered by company, vendor, purchase order number, and order dates.
         Example request:
-        `GET /v1/ap/purchaseorders?company=TC1&supplier=SUP1001&limit=500&page=1`
+        `GET /v1/ap/purchaseorders?company=TC1&vendor=VEND1001&limit=500&page=1`
       parameters:
         - in: query
           name: page
@@ -303,10 +303,10 @@ paths:
             type: string
           description: Filter by company number.
         - in: query
-          name: supplier
+          name: vendor
           schema:
             type: string
-          description: Filter by supplier ID.
+          description: Filter by vendor ID.
         - in: query
           name: poNo
           schema:
@@ -349,7 +349,7 @@ paths:
                     orderIdentifier2: ""
                     registerDate: "2020-10-16T09:11:27.570Z"
                     dueDate: "2020-10-16T09:11:27.570Z"
-                    supplier: "company[TC1];TS1"
+                    vendor: "company[TC1];TS1"
                     reference: testuser
                     reference2: ""
                     paymentTerm: "company[TC1];N30"
@@ -383,7 +383,9 @@ paths:
                 footer:
                   page: 1
                   pageSize: 500
-                  lastpage: true
+                  total: 950
+                  totalPages: 2
+                  lastPage: false
         '400':
           description: Invalid filter values were supplied.
         '500':
@@ -430,7 +432,7 @@ paths:
                 orderIdentifier2: ""
                 registerDate: "2020-10-16T09:11:27.570Z"
                 dueDate: "2020-10-16T09:11:27.570Z"
-                supplier: "company[TC1];TS1"
+                vendor: "company[TC1];TS1"
                 reference: testuser
                 reference2: ""
                 paymentTerm: "company[TC1];N30"
@@ -548,8 +550,159 @@ paths:
                 page: 1
                 pageSize: 500
                 total: 1
+                totalPages: 1
+                lastPage: true
         '500':
           description: Unexpected server error while retrieving payment details.
+
+  /v1/ap/paymentterms:
+    get:
+      tags: [Accounts Payable]
+      summary: List payment terms
+      description: Returns distinct payment terms with discount and net day details.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 1-based page number.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 500
+          description: Maximum number of terms to return per page. The value cannot exceed 2000.
+        - in: query
+          name: updated_since
+          schema:
+            type: string
+            format: date-time
+          description: Return payment terms updated on or after the provided ISO 8601 timestamp.
+        - in: query
+          name: companyId
+          schema:
+            type: string
+          description: Optional company identifier appended to the external system ID in responses.
+      responses:
+        '200':
+          description: Payment terms retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentTermsListResponse'
+              example:
+                data:
+                  - erpSourceId: MyERP
+                    externalSystemId: "TC1;N30"
+                    isActive: true
+                    lines:
+                      - cashDiscountPercentage: 0
+                        endOfMonth: false
+                        numberOfDays: 30
+                        numberOfMonths: 0
+                    companyId: TC1
+                    paymentTermId: N30
+                    name: Net 30
+                    description: Net 30
+                    updatedAt: "2025-01-15T00:00:00.000Z"
+                    startDate:
+                      type: InvoiceDate
+                      numberOfMonths: 0
+                page: 1
+                pageSize: 500
+                total: 1
+                totalPages: 1
+                lastPage: true
+        '400':
+          description: Invalid filter values were supplied.
+        '500':
+          description: Unexpected server error while retrieving payment terms.
+
+  /v1/ap/suppliers:
+    get:
+      tags: [Accounts Payable]
+      summary: List suppliers
+      description: Returns vendors with payment term details and contact information.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 1-based page number.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 500
+          description: Maximum number of suppliers to return per page. The value cannot exceed 2000.
+        - in: query
+          name: updated_since
+          schema:
+            type: string
+            format: date-time
+          description: Return suppliers updated on or after the provided ISO 8601 timestamp.
+        - in: query
+          name: company
+          schema:
+            type: string
+          description: Filter by company number.
+      responses:
+        '200':
+          description: Suppliers retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierListResponse'
+              example:
+                data:
+                  - erpSourceId: MyERP
+                    externalSystemId: SUP1001
+                    isActive: true
+                    companyId: TC1
+                    currencyCode: USD
+                    name: Test Supplier
+                    paymentTerm: N30
+                    supplierId: SUP1001
+                    ledgerDimension1: "2017101001"
+                    taxDimension1: "12345"
+                    clearance1Dimension1: "2017101001"
+                    taxIndicator1: null
+                    taxIndicator2: null
+                    streetAddress: "123 Main St"
+                    city: Boston
+                    zip: "02101"
+                    country: US
+                    telephone: "555-0100"
+                    fax: null
+                    homepage: null
+                    emailAddress: accounts@test.com
+                    state: MA
+                    isProcurable: true
+                    prepayment: false
+                    updatedAt: "2025-01-15T00:00:00.000Z"
+                    terms:
+                      id: N30
+                      description: Net 30
+                      discountPercent: 0
+                      discountDays: 0
+                      netDays: 30
+                page: 1
+                limit: 500
+                total: 1
+                totalPages: 1
+                lastPage: true
+        '400':
+          description: Invalid filter values were supplied.
+        '500':
+          description: Unexpected server error while retrieving suppliers.
 
 components:
   # --- keep your existing components here ---
@@ -656,7 +809,7 @@ components:
           type: string
           format: date-time
           nullable: true
-        supplier:
+        vendor:
           type: string
           nullable: true
         reference:
@@ -698,9 +851,15 @@ components:
             pageSize:
               type: integer
               minimum: 1
-            lastpage:
+            total:
+              type: integer
+              minimum: 0
+            totalPages:
+              type: integer
+              minimum: 0
+            lastPage:
               type: boolean
-          required: [page, pageSize, lastpage]
+          required: [page, pageSize, total, totalPages, lastPage]
       required: [purchaseOrders, footer]
 
     PaymentLine:
@@ -794,7 +953,202 @@ components:
         total:
           type: integer
           minimum: 0
-      required: [paymentDetails, page, pageSize, total]
+        totalPages:
+          type: integer
+          minimum: 0
+        lastPage:
+          type: boolean
+      required: [paymentDetails, page, pageSize, total, totalPages, lastPage]
+
+    PaymentTermLine:
+      type: object
+      properties:
+        cashDiscountPercentage:
+          type: number
+          format: double
+        endOfMonth:
+          type: boolean
+        numberOfDays:
+          type: integer
+        numberOfMonths:
+          type: integer
+
+    PaymentTerm:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+        isActive:
+          type: boolean
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentTermLine'
+        companyId:
+          type: string
+          nullable: true
+        paymentTermId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        startDate:
+          type: object
+          nullable: true
+          properties:
+            type:
+              type: string
+            numberOfMonths:
+              type: integer
+
+    PaymentTermsListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentTerm'
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        lastPage:
+          type: boolean
+      required: [data, page, pageSize, total, totalPages, lastPage]
+
+    Supplier:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+        isActive:
+          type: boolean
+        companyId:
+          type: string
+          nullable: true
+        currencyCode:
+          type: string
+          nullable: true
+        name:
+          type: string
+          nullable: true
+        paymentTerm:
+          type: string
+          nullable: true
+        supplierId:
+          type: string
+          nullable: true
+        ledgerDimension1:
+          type: string
+          nullable: true
+        taxDimension1:
+          type: string
+          nullable: true
+        clearance1Dimension1:
+          type: string
+          nullable: true
+        taxIndicator1:
+          type: string
+          nullable: true
+        taxIndicator2:
+          type: string
+          nullable: true
+        streetAddress:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        zip:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        telephone:
+          type: string
+          nullable: true
+        fax:
+          type: string
+          nullable: true
+        homepage:
+          type: string
+          nullable: true
+        emailAddress:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        isProcurable:
+          type: boolean
+        prepayment:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        terms:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+            description:
+              type: string
+              nullable: true
+            discountPercent:
+              type: number
+              format: double
+              nullable: true
+            discountDays:
+              type: number
+              format: double
+              nullable: true
+            netDays:
+              type: number
+              format: double
+              nullable: true
+
+    SupplierListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Supplier'
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        lastPage:
+          type: boolean
+      required: [data, page, limit, total, totalPages, lastPage]
 
     SalesOrderHeader:
       type: object

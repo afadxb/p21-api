@@ -40,7 +40,8 @@ const buildNetLine = (row) => ({
 
 router.get('/', async (req, res) => {
   const page = parsePositiveInt(req.query.page, DEFAULT_PAGE);
-  let pageSize = parsePositiveInt(req.query.page_size, DEFAULT_PAGE_SIZE);
+  const requestedPageSize = req.query.limit ?? req.query.page_size ?? req.query.pageSize;
+  let pageSize = parsePositiveInt(requestedPageSize, DEFAULT_PAGE_SIZE);
   if (pageSize > MAX_PAGE_SIZE) {
     pageSize = MAX_PAGE_SIZE;
   }
@@ -214,12 +215,16 @@ router.get('/', async (req, res) => {
 
     paymentTerms.sort((a, b) => a.paymentTermId.localeCompare(b.paymentTermId));
 
+    const totalPages = pageSize > 0 ? Math.ceil(total / pageSize) : 0;
+    const lastPage = totalPages === 0 ? page === 1 : page >= totalPages;
+
     res.json({
       data: paymentTerms,
       page,
       pageSize,
       total,
-      totalPages: Math.ceil(total / pageSize)
+      totalPages,
+      lastPage
     });
   } catch (error) {
     console.error('Error fetching payment terms:', error);

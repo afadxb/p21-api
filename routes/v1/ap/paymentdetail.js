@@ -220,12 +220,12 @@ router.get('/', async (req, res) => {
       ORDER BY ph.invoice_date DESC, ph.voucher_no, ph.rn;
     `;
 
-    const dataResult = await dataRequest.query(query);
+  const dataResult = await dataRequest.query(query);
 
-    const countRequest = new sql.Request();
+  const countRequest = new sql.Request();
     parameters.forEach((param) => {
-      countRequest.input(param.name, param.type, param.value);
-    });
+    countRequest.input(param.name, param.type, param.value);
+  });
 
     const countQuery = `
       WITH filtered_headers AS (
@@ -236,12 +236,15 @@ router.get('/', async (req, res) => {
       SELECT COUNT(*) AS total FROM filtered_headers;
     `;
 
-    const countResult = await countRequest.query(countQuery);
-    const total = countResult.recordset[0] ? Number(countResult.recordset[0].total) : 0;
+  const countResult = await countRequest.query(countQuery);
+  const total = countResult.recordset[0] ? Number(countResult.recordset[0].total) : 0;
 
-    const paymentDetails = groupPaymentDetails(dataResult.recordset);
+  const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
+  const lastPage = totalPages === 0 ? page === 1 : page >= totalPages;
 
-    return res.json({ paymentDetails, page, pageSize: limit, total });
+  const paymentDetails = groupPaymentDetails(dataResult.recordset);
+
+  return res.json({ paymentDetails, page, pageSize: limit, total, totalPages, lastPage });
   } catch (error) {
     console.error('Failed to fetch payment details', error);
     return res.status(500).json({ error: 'Failed to fetch payment details' });

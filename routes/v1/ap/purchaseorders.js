@@ -167,7 +167,10 @@ const formatComment = (comment, headerContext) => {
 
 const buildHeaderResponse = (header, lineMap, commentMap) => {
   const companyToken = buildCompanyToken(header.company_no);
-  const supplierToken = String(header.supplier_id).trim()
+  const vendorToken =
+    header.vendor_id === null || header.vendor_id === undefined
+      ? null
+      : String(header.vendor_id).trim();
   const paymentTerm = String(header.terms).trim()
   const referenceNameParts = [header.first_name, header.last_name]
     .filter((part) => part && String(part).trim());
@@ -225,7 +228,7 @@ const buildHeaderResponse = (header, lineMap, commentMap) => {
     orderIdentifier2: header.external_po_no ? String(header.external_po_no).trim() : '',
     registerDate: toIsoString(header.order_date),
     dueDate: toIsoString(header.date_due),
-    supplier: supplierToken,
+    vendor: vendorToken,
     reference: requestedByName,
     reference2: header.po_desc ? String(header.po_desc).trim() : '',
     paymentTerm,
@@ -253,6 +256,38 @@ const addHeaderIdentifiers = (request, headers) => {
   });
 };
 
+const buildHeaderFilters = (request, filters) => {
+  const whereFragments = ['po_hdr.order_date >= @minOrderDate'];
+  request.input('minOrderDate', sql.DateTime2, DEFAULT_MIN_ORDER_DATE);
+
+  if (filters.poNo) {
+    whereFragments.push('po_hdr.po_no = @poNo');
+    request.input('poNo', sql.VarChar, filters.poNo);
+  }
+  if (filters.company) {
+    whereFragments.push('po_hdr.company_no = @companyNo');
+    request.input('companyNo', sql.VarChar, filters.company);
+  }
+  if (filters.vendor) {
+    whereFragments.push('po_hdr.vendor_id = @vendorId');
+    request.input('vendorId', sql.VarChar, filters.vendor);
+  }
+  if (filters.updatedSince) {
+    whereFragments.push('po_hdr.date_last_modified >= @updatedSince');
+    request.input('updatedSince', sql.DateTime2, filters.updatedSince);
+  }
+  if (filters.orderDateFrom) {
+    whereFragments.push('po_hdr.order_date >= @orderDateFrom');
+    request.input('orderDateFrom', sql.DateTime2, filters.orderDateFrom);
+  }
+  if (filters.orderDateTo) {
+    whereFragments.push('po_hdr.order_date <= @orderDateTo');
+    request.input('orderDateTo', sql.DateTime2, filters.orderDateTo);
+  }
+
+  return whereFragments;
+};
+
 const fetchPurchaseOrders = async (filters, options = {}) => {
   const page = parsePositiveInt(options.page, 1);
   const requestedLimit = parsePositiveInt(options.limit, DEFAULT_LIMIT);
@@ -263,44 +298,29 @@ const fetchPurchaseOrders = async (filters, options = {}) => {
 
   const headerRequest = pool.request();
   headerRequest.input('offset', sql.Int, offset);
-  headerRequest.input('limit', sql.Int, limit + 1);
+  headerRequest.input('limit', sql.Int, limit);
 
-  const whereFragments = ['po_hdr.order_date >= @minOrderDate'];
-  headerRequest.input('minOrderDate', sql.DateTime2, DEFAULT_MIN_ORDER_DATE);
-
-  if (filters.poNo) {
-    whereFragments.push('po_hdr.po_no = @poNo');
-    headerRequest.input('poNo', sql.VarChar, filters.poNo);
-  }
-  if (filters.company) {
-    whereFragments.push('po_hdr.company_no = @companyNo');
-    headerRequest.input('companyNo', sql.VarChar, filters.company);
-  }
-  if (filters.supplier) {
-    whereFragments.push('po_hdr.supplier_id = @supplierId');
-    headerRequest.input('supplierId', sql.VarChar, filters.supplier);
-  }
-  if (filters.updatedSince) {
-    whereFragments.push('po_hdr.date_last_modified >= @updatedSince');
-    headerRequest.input('updatedSince', sql.DateTime2, filters.updatedSince);
-  }
-  if (filters.orderDateFrom) {
-    whereFragments.push('po_hdr.order_date >= @orderDateFrom');
-    headerRequest.input('orderDateFrom', sql.DateTime2, filters.orderDateFrom);
-  }
-  if (filters.orderDateTo) {
-    whereFragments.push('po_hdr.order_date <= @orderDateTo');
-    headerRequest.input('orderDateTo', sql.DateTime2, filters.orderDateTo);
-  }
-
+  const whereFragments = buildHeaderFilters(headerRequest, filters);
   const whereClause = whereFragments.length ? `WHERE po_hdr.delete_flag='N' AND ${whereFragments.join(' AND ')}` : '';
+
+  const countRequest = pool.request();
+  const countWhereFragments = buildHeaderFilters(countRequest, filters);
+  const countWhereClause = countWhereFragments.length
+    ? `WHERE po_hdr.delete_flag='N' AND ${countWhereFragments.join(' AND ')}`
+    : '';
+  const countQuery = `
+    SELECT COUNT(*) AS total
+    FROM po_hdr
+    ${countWhereClause};
+  `;
+  const countResult = await countRequest.query(countQuery);
+  const total = countResult.recordset?.[0]?.total ?? 0;
 
   const headerQuery = `
     SELECT
       po_hdr.po_no,
       po_hdr.company_no,
       po_hdr.vendor_id,
-      po_hdr.supplier_id,
       po_hdr.location_id,
       po_hdr.requested_by,
       po_hdr.order_date,
@@ -330,13 +350,17 @@ const fetchPurchaseOrders = async (filters, options = {}) => {
 
   const headerResult = await headerRequest.query(headerQuery);
   const headers = headerResult.recordset || [];
-  const hasMore = headers.length > limit;
-  const limitedHeaders = hasMore ? headers.slice(0, limit) : headers;
+  const limitedHeaders = headers;
+
+  const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
+  const lastPage = totalPages === 0 ? page === 1 : page >= totalPages;
 
   const footer = {
     page,
     pageSize: limit,
-    lastpage: !hasMore
+    total,
+    totalPages,
+    lastPage
   };
 
   if (limitedHeaders.length === 0) {
@@ -451,9 +475,9 @@ router.get('/', async (req, res) => {
     if (companyQuery) {
       filters.company = String(companyQuery).trim();
     }
-    const supplierQuery = req.query.supplier || req.query.supplierId;
-    if (supplierQuery) {
-      filters.supplier = String(supplierQuery).trim();
+    const vendorQuery = req.query.vendor || req.query.vendorId;
+    if (vendorQuery) {
+      filters.vendor = String(vendorQuery).trim();
     }
     const poNumberQuery = req.query.po_no || req.query.poNo || req.query.poNumber;
     if (poNumberQuery) {

@@ -148,8 +148,8 @@ const formatLine = (line, headerContext) => {
     deleteFlag: line.delete_flag === 'Y',
     reference: headerContext.requested_by_name || null,
     reference2: headerContext.po_desc || null,
-    taxIndicator1: (line.tax_group_id ? String(line.tax_group_id).trim() || null : null),
-    taxIndicator2: null,
+    //taxIndicator1: (line.tax_group_id ? String(line.tax_group_id).trim() || null : null),
+    //taxIndicator2: null,
     isTwoWayMatch: 'true'
   };
 };

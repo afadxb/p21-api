@@ -55,10 +55,10 @@ const formatPaymentDetailRow = (row) => ({
   approved: row.approved === 'Y',
   poNumber: row.po_no ? String(row.po_no).trim() : null,
   paidInFull: row.paid_in_full === 'Y',
-  amountPaid: row.amount_paid != null ? Number(row.amount_paid) : null,
-  homeAmountPaid: row.home_amt_paid != null ? Number(row.home_amt_paid) : null,
-  termsAmountTaken: row.terms_amount_taken != null ? Number(row.terms_amount_taken) : null,
-  amountPaidDisplay: row.amount_paid_display != null ? Number(row.amount_paid_display) : null
+  amountPaid: row.amount_paid != null ? Number(row.amount_paid) : 0,
+  homeAmountPaid: row.home_amt_paid != null ? Number(row.home_amt_paid) : 0,
+  termsAmountTaken: row.terms_amount_taken != null ? Number(row.terms_amount_taken) : 0,
+  amountPaidDisplay: row.amount_paid_display != null ? Number(row.amount_paid_display) : 0
 });
 
 const groupPaymentDetails = (rows) => {
@@ -120,6 +120,8 @@ router.get('/', async (req, res) => {
 
   const filters = [];
   const parameters = [];
+
+  filters.push('apinv_hdr.check_date IS NOT NULL');
 
   const companyParam = typeof req.query.company === 'string' ? req.query.company.trim() : null;
   if (companyParam) {

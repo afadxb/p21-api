@@ -150,13 +150,18 @@ curl -X POST http://localhost:3000/v1/sales/order \
 ```
 
 On success the service responds with HTTP `201` and returns the generated import
-set number for each order along with the number of line rows inserted:
+set number for each order along with the number of line rows inserted. When a
+`jobName` is provided on the order header it is also echoed back as `referance1`:
 
 ```json
 {
   "message": "Sales orders saved",
   "orders": [
-    { "importSetNo": "15", "linesInserted": 1 }
+    {
+      "importSetNo": "15",
+      "linesInserted": 1,
+      "referance1": "ACME HQ Renovation"
+    }
   ]
 }
 ```
@@ -203,13 +208,18 @@ curl -X POST http://localhost:3000/v1/sales/order \
 ```
 
 On success the service responds with HTTP `201` and returns the generated import
-set number for each order along with the number of line rows inserted:
+set number for each order along with the number of line rows inserted. When a
+`jobName` is provided on the order header it is also echoed back as `referance1`:
 
 ```json
 {
   "message": "Sales orders saved",
   "orders": [
-    { "importSetNo": "15", "linesInserted": 1 }
+    {
+      "importSetNo": "15",
+      "linesInserted": 1,
+      "referance1": "ACME HQ Renovation"
+    }
   ]
 }
 ```

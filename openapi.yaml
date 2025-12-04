@@ -117,6 +117,9 @@ paths:
                       properties:
                         importSetNo:   { type: string }
                         linesInserted: { type: integer }
+                        referance1:
+                          type: string
+                          description: Job name provided in the order header.
               examples:
                 created:
                   summary: Created response
@@ -125,6 +128,7 @@ paths:
                     orders:
                       - importSetNo: "12345"
                         linesInserted: 2
+                        referance1: "ACME HQ Renovation"
         '400':
           description: Validation error (missing required fields, invalid data, or empty lines).
           content:

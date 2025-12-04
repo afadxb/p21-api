@@ -248,10 +248,16 @@ router.post('/', async (req, res) => {
           linesInserted += 1;
         }
 
-        responseOrders.push({
+        const responseOrder = {
           importSetNo: currentImportSetNo,
           linesInserted
-        });
+        };
+
+        if (!isEmpty(headerValues.jobName)) {
+          responseOrder.referance1 = headerValues.jobName;
+        }
+
+        responseOrders.push(responseOrder);
       }
 
       await transaction.commit();

@@ -89,7 +89,7 @@ const groupPaymentDetails = (rows) => {
 
     const hasPaymentDetail =
       formatted.amountPaid != null ||
-      formatted.homeAmountPaid != null ||
+      formatted.CAD_AmountPaid != null ||
       formatted.termsAmountTaken != null ||
       formatted.amountPaidDisplay != null ||
       row.paid_in_full != null ||
@@ -104,7 +104,7 @@ const groupPaymentDetails = (rows) => {
         checkDate: formatted.checkDate,
         paidInFull: formatted.paidInFull,
         amountPaid: formatted.amountPaid,
-        homeAmountPaid: formatted.homeAmountPaid,
+        CAD_AmountPaid: formatted.CAD_AmountPaid,
         termsAmountTaken: formatted.termsAmountTaken,
         amountPaidDisplay: formatted.amountPaidDisplay
       });

@@ -537,8 +537,6 @@ paths:
                     invoiceDate: "2025-10-28T00:00:00.000Z"
                     invoiceAmount: 49039.38
                     voucherNumber: "1486897"
-                    checkNumber: "022375"
-                    checkDate: "2025-10-28T09:40:37.000Z"
                     currency: "USD"
                     voucherRefInvoiceNumber: null
                     apAccountNumber: "2017101001"
@@ -546,7 +544,10 @@ paths:
                     approved: true
                     poNumber: null
                     PaymentLine:
-                      - paidInFull: true
+                      - method: "Cheque"
+                        checkNumber: "022375"
+                        checkDate: "2025-10-28T09:40:37.000Z"
+                        paidInFull: true
                         amountPaid: 49039.38
                         homeAmountPaid: 49039.38
                         termsAmountTaken: 0
@@ -869,6 +870,16 @@ components:
     PaymentLine:
       type: object
       properties:
+        method:
+          type: string
+          nullable: true
+        checkNumber:
+          type: string
+          nullable: true
+        checkDate:
+          type: string
+          format: date-time
+          nullable: true
         paidInFull:
           type: boolean
         amountPaid:
@@ -910,13 +921,6 @@ components:
           nullable: true
         voucherNumber:
           type: string
-          nullable: true
-        checkNumber:
-          type: string
-          nullable: true
-        checkDate:
-          type: string
-          format: date-time
           nullable: true
         currency:
           type: string

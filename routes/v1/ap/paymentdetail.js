@@ -48,6 +48,7 @@ const formatPaymentDetailRow = (row) => ({
   voucherNumber: row.voucher_no ? String(row.voucher_no).trim() : null,
   checkNumber: row.check_no ? String(row.check_no).trim() : null,
   checkDate: toIsoString(row.check_date),
+  method: row.method ? String(row.method).trim() : null,
   currency: row.currency ? String(row.currency).trim() : mapCurrencyIdToCode(row.currency_id),
   voucherRefInvoiceNumber: row.voucher_ref_inv_no ? String(row.voucher_ref_inv_no).trim() : null,
   apAccountNumber: row.ap_account_no ? String(row.ap_account_no).trim() : null,
@@ -76,8 +77,6 @@ const groupPaymentDetails = (rows) => {
         invoiceDate: formatted.invoiceDate,
         invoiceAmount: formatted.invoiceAmount,
         voucherNumber: formatted.voucherNumber,
-        checkNumber: formatted.checkNumber,
-        checkDate: formatted.checkDate,
         currency: formatted.currency,
         voucherRefInvoiceNumber: formatted.voucherRefInvoiceNumber,
         apAccountNumber: formatted.apAccountNumber,
@@ -93,10 +92,16 @@ const groupPaymentDetails = (rows) => {
       formatted.homeAmountPaid != null ||
       formatted.termsAmountTaken != null ||
       formatted.amountPaidDisplay != null ||
-      row.paid_in_full != null;
+      row.paid_in_full != null ||
+      formatted.method != null ||
+      formatted.checkNumber != null ||
+      formatted.checkDate != null;
 
     if (hasPaymentDetail) {
       groupedByVoucher.get(voucherKey).PaymentLine.push({
+        method: formatted.method,
+        checkNumber: formatted.checkNumber,
+        checkDate: formatted.checkDate,
         paidInFull: formatted.paidInFull,
         amountPaid: formatted.amountPaid,
         homeAmountPaid: formatted.homeAmountPaid,

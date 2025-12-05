@@ -122,6 +122,7 @@ router.get('/', async (req, res) => {
   const parameters = [];
 
   filters.push('payments.check_date IS NOT NULL');
+//  filters.push('apinv_hdr.check_date IS NOT NULL');
 
   const companyParam = typeof req.query.company === 'string' ? req.query.company.trim() : null;
   if (companyParam) {

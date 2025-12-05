@@ -56,9 +56,9 @@ const formatPaymentDetailRow = (row) => ({
   approved: row.approved === 'Y',
   poNumber: row.po_no ? String(row.po_no).trim() : null,
   paidInFull: row.paid_in_full === 'Y',
-  amountPaid_CAD: row.amount_paid != null ? Number(row.amount_paid) : 0,
+  amountPaid: row.amount_paid != null ? Number(row.amount_paid) : 0,
   termsAmountTaken: row.terms_amount_taken != null ? Number(row.terms_amount_taken) : 0,
-  amountPaidDisplay: row.amount_paid_display != null ? Number(row.amount_paid_display) : 0
+  //amountPaidDisplay: row.amount_paid_display != null ? Number(row.amount_paid_display) : 0
 });
 
 const groupPaymentDetails = (rows) => {
@@ -89,7 +89,6 @@ const groupPaymentDetails = (rows) => {
     const hasPaymentDetail =
       formatted.amountPaid != null ||
       formatted.termsAmountTaken != null ||
-      formatted.amountPaidDisplay != null ||
       row.paid_in_full != null ||
       formatted.method != null ||
       formatted.checkNumber != null ||
@@ -102,8 +101,7 @@ const groupPaymentDetails = (rows) => {
         checkDate: formatted.checkDate,
         paidInFull: formatted.paidInFull,
         amountPaid: formatted.amountPaid,
-        termsAmountTaken: formatted.termsAmountTaken,
-        amountPaidDisplay: formatted.amountPaidDisplay
+        termsAmountTaken: formatted.termsAmountTaken
       });
     }
   });
@@ -204,8 +202,7 @@ router.get('/', async (req, res) => {
           payments.date_created,
           payments.date_last_modified,
           payment_detail.amount_paid,
-          payment_detail.terms_amount_taken,
-          payment_detail.amount_paid_display
+          payment_detail.terms_amount_taken
         FROM apinv_hdr
         INNER JOIN payment_detail ON payment_detail.voucher_no = apinv_hdr.voucher_no
         INNER JOIN payments ON

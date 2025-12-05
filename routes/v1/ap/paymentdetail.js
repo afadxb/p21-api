@@ -55,10 +55,10 @@ const formatPaymentDetailRow = (row) => ({
   approved: row.approved === 'Y',
   poNumber: row.po_no ? String(row.po_no).trim() : null,
   paidInFull: row.paid_in_full === 'Y',
-  amountPaid: row.amount_paid != null ? Number(row.amount_paid) : null,
-  homeAmountPaid: row.home_amt_paid != null ? Number(row.home_amt_paid) : null,
-  termsAmountTaken: row.terms_amount_taken != null ? Number(row.terms_amount_taken) : null,
-  amountPaidDisplay: row.amount_paid_display != null ? Number(row.amount_paid_display) : null
+  amountPaid: row.amount_paid != null ? Number(row.amount_paid) : 0,
+  homeAmountPaid: row.home_amt_paid != null ? Number(row.home_amt_paid) : 0,
+  termsAmountTaken: row.terms_amount_taken != null ? Number(row.terms_amount_taken) : 0,
+  amountPaidDisplay: row.amount_paid_display != null ? Number(row.amount_paid_display) : 0
 });
 
 const groupPaymentDetails = (rows) => {
@@ -121,6 +121,8 @@ router.get('/', async (req, res) => {
   const filters = [];
   const parameters = [];
 
+  filters.push('payments.check_date IS NOT NULL');
+
   const companyParam = typeof req.query.company === 'string' ? req.query.company.trim() : null;
   if (companyParam) {
     filters.push('apinv_hdr.company_no = @company');
@@ -164,7 +166,7 @@ router.get('/', async (req, res) => {
     });
 
     const query = `
-      WITH filtered_headers AS (
+      WITH filtered_rows AS (
         SELECT
           apinv_hdr.company_no,
           apinv_hdr.vendor_id,
@@ -172,79 +174,84 @@ router.get('/', async (req, res) => {
           apinv_hdr.invoice_date,
           apinv_hdr.invoice_amount,
           apinv_hdr.voucher_no,
-          apinv_hdr.check_no,
-          apinv_hdr.check_date,
           apinv_hdr.currency_id,
           apinv_hdr.voucher_ref_inv_no,
           apinv_hdr.ap_account_no,
           apinv_hdr.cash_account_no,
           apinv_hdr.approved,
           apinv_hdr.po_no,
-          apinv_hdr.paid_in_full
+          apinv_hdr.branch_id,
+          apinv_hdr.paid_in_full,
+          CASE apinv_hdr.currency_id
+            WHEN 1 THEN 'CAD'
+            WHEN 3 THEN 'USD'
+            WHEN 4 THEN 'EUR'
+            WHEN 6 THEN 'CNY'
+            ELSE NULL
+          END AS currency,
+          CASE payments.transmission_method
+            WHEN 2694 THEN 'ACH/EFT'
+            ELSE 'Cheque'
+          END AS method,
+          payments.check_date,
+          payments.void,
+          payments.check_no,
+          payments.check_amount,
+          payments.cleared_bank,
+          payments.date_created,
+          payments.date_last_modified,
+          payment_detail.amount_paid,
+          payment_detail.home_amt_paid,
+          payment_detail.terms_amount_taken,
+          payment_detail.amount_paid_display
         FROM apinv_hdr
+        INNER JOIN payment_detail ON payment_detail.voucher_no = apinv_hdr.voucher_no
+        INNER JOIN payments ON
+          payments.check_no = payment_detail.check_no AND
+          payments.bank_no = payment_detail.bank_no AND
+          payments.company_no = payment_detail.company_no
         ${whereClause}
       ),
-      paged_headers AS (
+      paged_rows AS (
         SELECT *, ROW_NUMBER() OVER (ORDER BY invoice_date DESC, voucher_no) AS rn
-        FROM filtered_headers
+        FROM filtered_rows
       )
-      SELECT
-        ph.company_no,
-        ph.vendor_id,
-        ph.invoice_no,
-        ph.invoice_date,
-        ph.invoice_amount,
-        ph.voucher_no,
-        ph.check_no,
-        ph.check_date,
-        CASE ph.currency_id
-          WHEN 1 THEN 'CAD'
-          WHEN 3 THEN 'USD'
-          WHEN 4 THEN 'EUR'
-          WHEN 6 THEN 'CNY'
-          ELSE NULL
-        END AS currency,
-        ph.voucher_ref_inv_no,
-        ph.ap_account_no,
-        ph.cash_account_no,
-        ph.approved,
-        ph.po_no,
-        ph.paid_in_full,
-        payment_detail.amount_paid,
-        payment_detail.home_amt_paid,
-        payment_detail.terms_amount_taken,
-        payment_detail.amount_paid_display
-      FROM paged_headers ph
-      LEFT JOIN payment_detail ON ph.voucher_no = payment_detail.voucher_no
-      WHERE ph.rn BETWEEN @offset + 1 AND @offset + @limit
-      ORDER BY ph.invoice_date DESC, ph.voucher_no, ph.rn;
+      SELECT *
+      FROM paged_rows
+      WHERE rn BETWEEN @offset + 1 AND @offset + @limit
+      ORDER BY invoice_date DESC, voucher_no, rn;
     `;
 
-  const dataResult = await dataRequest.query(query);
+    const dataResult = await dataRequest.query(query);
 
-  const countRequest = new sql.Request();
+    const countRequest = new sql.Request();
     parameters.forEach((param) => {
-    countRequest.input(param.name, param.type, param.value);
-  });
+      countRequest.input(param.name, param.type, param.value);
+    });
 
     const countQuery = `
-      WITH filtered_headers AS (
+      WITH filtered_rows AS (
         SELECT apinv_hdr.voucher_no
         FROM apinv_hdr
+        INNER JOIN payment_detail ON payment_detail.voucher_no = apinv_hdr.voucher_no
+        INNER JOIN payments ON
+          payments.check_no = payment_detail.check_no AND
+          payments.bank_no = payment_detail.bank_no AND
+          payments.company_no = payment_detail.company_no
         ${whereClause}
       )
-      SELECT COUNT(*) AS total FROM filtered_headers;
+      SELECT COUNT(*) AS total FROM filtered_rows;
     `;
 
-  const countResult = await countRequest.query(countQuery);
-  const total = countResult.recordset[0] ? Number(countResult.recordset[0].total) : 0;
+    const countResult = await countRequest.query(countQuery);
+    const total = countResult.recordset[0] ? Number(countResult.recordset[0].total) : 0;
 
-  const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
-  const lastPage = totalPages === 0 ? page === 1 : page >= totalPages;
+    const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
+    const lastPage = totalPages === 0 ? page === 1 : page >= totalPages;
 
-  const paymentDetails = groupPaymentDetails(dataResult.recordset);
+    const paymentDetails = groupPaymentDetails(dataResult.recordset);
 
-  return res.json({ paymentDetails, page, pageSize: limit, total, totalPages, lastPage });
+    return res.json({ paymentDetails, page, pageSize: limit, total, totalPages, lastPage });
   } catch (error) {
     console.error('Failed to fetch payment details', error);
     return res.status(500).json({ error: 'Failed to fetch payment details' });

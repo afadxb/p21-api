@@ -19,6 +19,7 @@ app.use('/v1/ap/purchaseorders', require('./routes/v1/ap/purchaseorders'));
 app.use('/v1/ap/paymentdetail', require('./routes/v1/ap/paymentdetail'));
 app.use('/v1/sales/order', require('./routes/v1/sales/order'));
 app.use('/v1/system/exch_rates', require('./routes/v1/system/exch_rates'));
+app.use('/v1/system/periods', require('./routes/v1/system/periods'));
 
 // Background jobs
 const { startExportJob } = require('./jobs/exportTmpOrders');

@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
 
+const DEFAULT_LIMIT = 500;
+const MAX_LIMIT = 2000;
+
 const parseOptionalInt = (value) => {
   if (value === undefined || value === null || value === '') {
     return null;
@@ -13,7 +16,23 @@ const parseOptionalInt = (value) => {
   return parsed;
 };
 
+const parsePositiveInt = (value, defaultValue) => {
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed < 1) {
+    return defaultValue;
+  }
+  return parsed;
+};
+
 router.get('/', async (req, res) => {
+  const page = parsePositiveInt(req.query.page, 1);
+  const requestedLimit = req.query.limit ?? req.query.page_size ?? req.query.pageSize;
+  let limit = parsePositiveInt(requestedLimit, DEFAULT_LIMIT);
+  if (limit > MAX_LIMIT) {
+    limit = MAX_LIMIT;
+  }
+  const offset = (page - 1) * limit;
+
   const receiptNumberParam = parseOptionalInt(req.query.receipt_number ?? req.query.receiptNumber);
   const poNumberParam = parseOptionalInt(req.query.po_number ?? req.query.poNumber);
 
@@ -26,11 +45,34 @@ router.get('/', async (req, res) => {
   try {
     await sql.connect(config);
 
-    const request = new sql.Request();
-    request.input('receipt_number', sql.Int, receiptNumberParam);
-    request.input('po_number', sql.Int, poNumberParam);
+    const parameters = [
+      { name: 'receipt_number', type: sql.Int, value: receiptNumberParam },
+      { name: 'po_number', type: sql.Int, value: poNumberParam },
+      { name: 'date_created', type: sql.Date, value: new Date('2020-01-01') }
+    ];
 
-    const query = `
+    const dataRequest = new sql.Request();
+    const countRequest = new sql.Request();
+
+    parameters.forEach((param) => {
+      dataRequest.input(param.name, param.type, param.value);
+      countRequest.input(param.name, param.type, param.value);
+    });
+
+    dataRequest.input('offset', sql.Int, offset);
+    dataRequest.input('limit', sql.Int, limit);
+
+    const whereClauses = ["h.delete_flag = 'N'", 'CONVERT(date, h.date_created) = @date_created'];
+    if (receiptNumberParam !== null) {
+      whereClauses.push('h.receipt_number = @receipt_number');
+    }
+    if (poNumberParam !== null) {
+      whereClauses.push('h.po_number = @po_number');
+    }
+
+    const whereClause = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const dataQuery = `
       /* Receipt header + line items (hdr + line + inv_mast) with computed vouch_complete */
       ;WITH drv_vendor_invoice_line AS (
           SELECT
@@ -83,14 +125,32 @@ router.get('/', async (req, res) => {
       LEFT JOIN drv_vendor_invoice_line dvil
         ON dvil.receipt_number = l.receipt_number
        AND dvil.po_line_number  = l.po_line_number
-      WHERE h.delete_flag = 'N'
-        AND (@receipt_number IS NULL OR h.receipt_number = @receipt_number)
-        AND (@po_number      IS NULL OR h.po_number      = @po_number)
-      ORDER BY h.receipt_number, l.po_line_number;
+      ${whereClause}
+      ORDER BY h.receipt_number, l.po_line_number
+      OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
     `;
 
-    const result = await request.query(query);
-    return res.json(result.recordset || []);
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM inventory_receipts_hdr h
+      JOIN inventory_receipts_line l
+        ON l.receipt_number = h.receipt_number
+      JOIN inv_mast im
+        ON im.inv_mast_uid = l.inv_mast_uid
+      ${whereClause};
+    `;
+
+    const [dataResult, countResult] = await Promise.all([
+      dataRequest.query(dataQuery),
+      countRequest.query(countQuery)
+    ]);
+
+    const receipts = dataResult.recordset || [];
+    const total = countResult.recordset[0] ? Number(countResult.recordset[0].total) : 0;
+    const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
+    const lastPage = totalPages === 0 ? page === 1 : page >= totalPages;
+
+    return res.json({ data: receipts, page, limit, total, totalPages, lastPage });
   } catch (err) {
     console.error('Error fetching receipts', err);
     return res.status(500).json({ error: 'Internal server error' });

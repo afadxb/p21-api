@@ -173,9 +173,9 @@ router.get('/', async (req, res) => {
           receipt_number: row.receipt_number,
           po_number: row.po_number,
           currency_id: mapCurrencyIdToCode(row.currency_id),
-          approved: row.approved,
           date_created: row.date_created,
           date_last_modified: row.date_last_modified,
+          approved: row.approved,          
           lines: []
         };
 
@@ -185,6 +185,8 @@ router.get('/', async (req, res) => {
 
       receipt.lines.push({
         po_line_number: row.po_line_number,
+        item_id: row.item_id,
+        item_desc: row.item_desc,        
         qty_received: row.qty_received,
         unit_size: row.unit_size,
         unit_of_measure: row.unit_of_measure,
@@ -192,8 +194,6 @@ router.get('/', async (req, res) => {
         extended_cost: row.extended_cost,
         pricing_unit: row.pricing_unit,
         pricing_unit_size: row.pricing_unit_size,
-        item_id: row.item_id,
-        item_desc: row.item_desc,
         vouch_complete: row.vouch_complete
       });
     });

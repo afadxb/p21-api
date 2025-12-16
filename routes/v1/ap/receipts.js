@@ -4,6 +4,7 @@ const { sql, config } = require('../../../db');
 
 const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 2000;
+const DEFAULT_MIN_ORDER_DATE = new Date('2020-01-01T00:00:00Z');
 
 const parseOptionalInt = (value) => {
   if (value === undefined || value === null || value === '') {
@@ -48,7 +49,7 @@ router.get('/', async (req, res) => {
     const parameters = [
       { name: 'receipt_number', type: sql.Int, value: receiptNumberParam },
       { name: 'po_number', type: sql.Int, value: poNumberParam },
-      { name: 'date_created', type: sql.Date, value: new Date('2020-01-01') }
+      { name: 'min_order_date', type: sql.DateTime, value: DEFAULT_MIN_ORDER_DATE }
     ];
 
     const dataRequest = new sql.Request();
@@ -62,7 +63,7 @@ router.get('/', async (req, res) => {
     dataRequest.input('offset', sql.Int, offset);
     dataRequest.input('limit', sql.Int, limit);
 
-    const whereClauses = ["h.delete_flag = 'N'", 'CONVERT(date, h.date_created) = @date_created'];
+    const whereClauses = ["h.delete_flag = 'N'", 'h.date_created >= @min_order_date'];
     if (receiptNumberParam !== null) {
       whereClauses.push('h.receipt_number = @receipt_number');
     }

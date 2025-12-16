@@ -146,7 +146,43 @@ router.get('/', async (req, res) => {
       countRequest.query(countQuery)
     ]);
 
-    const receipts = dataResult.recordset || [];
+    const receiptRows = dataResult.recordset || [];
+    const receipts = [];
+    const receiptMap = new Map();
+
+    receiptRows.forEach((row) => {
+      let receipt = receiptMap.get(row.receipt_number);
+
+      if (!receipt) {
+        receipt = {
+          receipt_number: row.receipt_number,
+          po_number: row.po_number,
+          currency_id: row.currency_id,
+          approved: row.approved,
+          date_created: row.date_created,
+          date_last_modified: row.date_last_modified,
+          lines: []
+        };
+
+        receiptMap.set(row.receipt_number, receipt);
+        receipts.push(receipt);
+      }
+
+      receipt.lines.push({
+        po_line_number: row.po_line_number,
+        qty_received: row.qty_received,
+        unit_size: row.unit_size,
+        unit_of_measure: row.unit_of_measure,
+        unit_cost: row.unit_cost,
+        extended_cost: row.extended_cost,
+        pricing_unit: row.pricing_unit,
+        pricing_unit_size: row.pricing_unit_size,
+        item_id: row.item_id,
+        item_desc: row.item_desc,
+        vouch_complete: row.vouch_complete
+      });
+    });
+
     const total = countResult.recordset[0] ? Number(countResult.recordset[0].total) : 0;
     const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
     const lastPage = totalPages === 0 ? page === 1 : page >= totalPages;

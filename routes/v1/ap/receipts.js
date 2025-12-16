@@ -202,7 +202,7 @@ router.get('/', async (req, res) => {
     const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
     const lastPage = totalPages === 0 ? page === 1 : page >= totalPages;
 
-    return res.json({ receipt: receipts, page, limit, total, totalPages, lastPage });
+    return res.json({ receipts: receipts, page, limit, total, totalPages, lastPage });
   } catch (err) {
     console.error('Error fetching receipts', err);
     return res.status(500).json({ error: 'Internal server error' });

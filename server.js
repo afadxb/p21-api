@@ -17,6 +17,7 @@ app.use('/v1/ap/suppliers', require('./routes/v1/ap/suppliers'));
 app.use('/v1/ap/paymentterms', require('./routes/v1/ap/paymentterms'));
 app.use('/v1/ap/purchaseorders', require('./routes/v1/ap/purchaseorders'));
 app.use('/v1/ap/paymentdetail', require('./routes/v1/ap/paymentdetail'));
+app.use('/v1/ap/receipts', require('./routes/v1/ap/receipts'));
 app.use('/v1/sales/order', require('./routes/v1/sales/order'));
 app.use('/v1/system/exch_rates', require('./routes/v1/system/exch_rates'));
 app.use('/v1/system/periods', require('./routes/v1/system/periods'));

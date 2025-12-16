@@ -97,6 +97,33 @@ Example:
 curl http://localhost:3000/v1/inventory/items/ABC123
 ```
 
+### `GET /v1/ap/purchaseorders`
+Returns purchase order headers with embedded lines and comments. Available query string filters:
+
+- `company` / `companyId` – limit results to a specific company number
+- `vendor` / `vendorId` – limit results to a vendor number
+- `po_no` / `poNo` / `poNumber` – fetch a specific purchase order number
+- `date_field` – choose `po_date` or `last_modified` as the field to filter the optional date range (defaults to `po_date` when omitted)
+- `date_from`, `date_to` – ISO-8601 start/end datetimes applied to `date_field`
+- `updated_since` – ISO-8601 datetime; returns orders updated on or after this value
+- `order_date_from`, `order_date_to` – ISO-8601 start/end dates restricted specifically to the PO order date
+- `page` – page number for pagination (defaults to 1)
+- `limit` / `pageSize` / `page_size` – page size (defaults to 500, max 2000)
+
+Example URL filtering by PO date in January 2024:
+
+```bash
+curl "http://localhost:3000/v1/ap/purchaseorders?date_field=po_date&date_from=2024-01-01T00:00:00Z&date_to=2024-01-31T23:59:59Z"
+```
+
+To filter by last modified timestamp instead, switch `date_field` to `last_modified` while keeping the same date range.
+
+Example URL returning purchase orders updated on or after 1 February 2024:
+
+```bash
+curl "http://localhost:3000/v1/ap/purchaseorders?updated_since=2024-02-01T00:00:00Z"
+```
+
 ### `GET /pricing/{item_id}`
 Returns pricing information for an item (placeholder). The response is:
 ```json

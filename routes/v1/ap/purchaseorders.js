@@ -284,6 +284,17 @@ const buildHeaderFilters = (request, filters) => {
     whereFragments.push('po_hdr.order_date <= @orderDateTo');
     request.input('orderDateTo', sql.DateTime2, filters.orderDateTo);
   }
+  if (filters.dateRange?.from || filters.dateRange?.to) {
+    const field = filters.dateRange?.field || 'order_date';
+    if (filters.dateRange?.from) {
+      whereFragments.push(`po_hdr.${field} >= @dateRangeFrom`);
+      request.input('dateRangeFrom', sql.DateTime2, filters.dateRange.from);
+    }
+    if (filters.dateRange?.to) {
+      whereFragments.push(`po_hdr.${field} <= @dateRangeTo`);
+      request.input('dateRangeTo', sql.DateTime2, filters.dateRange.to);
+    }
+  }
 
   return whereFragments;
 };
@@ -484,6 +495,49 @@ router.get('/', async (req, res) => {
       filters.poNo = String(poNumberQuery).trim();
     }
 
+    const dateFieldRaw = req.query.date_field || req.query.dateField;
+    let dateField;
+    if (dateFieldRaw) {
+      const normalized = String(dateFieldRaw).trim().toLowerCase();
+      if (['podate', 'po_date', 'order_date', 'po', 'order'].includes(normalized)) {
+        dateField = 'order_date';
+      } else if (
+        ['last_modified', 'date_last_modified', 'modified', 'updated', 'modified_date'].includes(
+          normalized
+        )
+      ) {
+        dateField = 'date_last_modified';
+      } else {
+        return res.status(400).json({
+          error: "Invalid date_field parameter. Use 'poDate' or 'last_modified'."
+        });
+      }
+    }
+
+    const dateFromRaw = req.query.date_from || req.query.dateFrom;
+    const dateToRaw = req.query.date_to || req.query.dateTo;
+    const dateFrom = normalizeDate(dateFromRaw);
+    const dateTo = normalizeDate(dateToRaw);
+
+    if (dateFromRaw && !dateFrom) {
+      return res.status(400).json({
+        error: 'Invalid date_from parameter. Expecting ISO 8601 date.'
+      });
+    }
+    if (dateToRaw && !dateTo) {
+      return res.status(400).json({
+        error: 'Invalid date_to parameter. Expecting ISO 8601 date.'
+      });
+    }
+
+    if (dateFrom || dateTo) {
+      filters.dateRange = {
+        field: dateField || 'order_date',
+        from: dateFrom || null,
+        to: dateTo || null
+      };
+    }
+
     const updatedSinceRaw = req.query.updated_since || req.query.updatedSince;
     if (updatedSinceRaw) {
       const updatedSince = normalizeDate(updatedSinceRaw);
@@ -539,6 +593,45 @@ router.get('/:poNo', async (req, res) => {
         return res.status(400).json({ error: 'Invalid updated_since parameter. Expecting ISO 8601 date.' });
       }
       filters.updatedSince = updatedSince;
+    }
+
+    const dateFieldRaw = req.query.date_field || req.query.dateField;
+    let dateField;
+    if (dateFieldRaw) {
+      const normalized = String(dateFieldRaw).trim().toLowerCase();
+      if (['podate', 'po_date', 'order_date', 'po', 'order'].includes(normalized)) {
+        dateField = 'order_date';
+      } else if (
+        ['last_modified', 'date_last_modified', 'modified', 'updated', 'modified_date'].includes(
+          normalized
+        )
+      ) {
+        dateField = 'date_last_modified';
+      } else {
+        return res.status(400).json({
+          error: "Invalid date_field parameter. Use 'poDate' or 'last_modified'."
+        });
+      }
+    }
+
+    const dateFromRaw = req.query.date_from || req.query.dateFrom;
+    const dateToRaw = req.query.date_to || req.query.dateTo;
+    const dateFrom = normalizeDate(dateFromRaw);
+    const dateTo = normalizeDate(dateToRaw);
+
+    if (dateFromRaw && !dateFrom) {
+      return res.status(400).json({ error: 'Invalid date_from parameter. Expecting ISO 8601 date.' });
+    }
+    if (dateToRaw && !dateTo) {
+      return res.status(400).json({ error: 'Invalid date_to parameter. Expecting ISO 8601 date.' });
+    }
+
+    if (dateFrom || dateTo) {
+      filters.dateRange = {
+        field: dateField || 'order_date',
+        from: dateFrom || null,
+        to: dateTo || null
+      };
     }
 
     const { purchaseOrders } = await fetchPurchaseOrders(filters, { page: 1, limit: 1 });

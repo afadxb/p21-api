@@ -172,7 +172,7 @@ router.get('/', async (req, res) => {
         receipt = {
           receipt_number: row.receipt_number,
           po_number: row.po_number,
-          currency_id: mapCurrencyIdToCode(row.currency_id),
+          currency: mapCurrencyIdToCode(row.currency_id),
           date_created: row.date_created,
           date_last_modified: row.date_last_modified,
           approved: row.approved,          

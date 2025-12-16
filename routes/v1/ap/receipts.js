@@ -6,6 +6,21 @@ const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 2000;
 const DEFAULT_MIN_ORDER_DATE = new Date('2020-01-01T00:00:00Z');
 
+const mapCurrencyIdToCode = (currencyId) => {
+  switch (currencyId) {
+    case 1:
+      return 'CAD';
+    case 3:
+      return 'USD';
+    case 4:
+      return 'EUR';
+    case 6:
+      return 'CNY';
+    default:
+      return currencyId ? String(currencyId).trim() : null;
+  }
+};
+
 const parseOptionalInt = (value) => {
   if (value === undefined || value === null || value === '') {
     return null;
@@ -157,7 +172,7 @@ router.get('/', async (req, res) => {
         receipt = {
           receipt_number: row.receipt_number,
           po_number: row.po_number,
-          currency_id: row.currency_id,
+          currency_id: mapCurrencyIdToCode(row.currency_id),
           approved: row.approved,
           date_created: row.date_created,
           date_last_modified: row.date_last_modified,

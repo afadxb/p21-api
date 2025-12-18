@@ -347,6 +347,7 @@ paths:
                     externalSystemId: "company[TC1];PO400001"
                     isActive: true
                     companyId: "company[TC1]"
+                    location_id: "LOC1"
                     amount: 1000
                     currencyCode: EUR
                     orderIdentifier: PO400001
@@ -430,6 +431,7 @@ paths:
                 externalSystemId: "company[TC1];PO400001"
                 isActive: true
                 companyId: "company[TC1]"
+                location_id: "LOC1"
                 amount: 1000
                 currencyCode: EUR
                 orderIdentifier: PO400001
@@ -793,6 +795,9 @@ components:
         isActive:
           type: boolean
         companyId:
+          type: string
+          nullable: true
+        location_id:
           type: string
           nullable: true
         amount:

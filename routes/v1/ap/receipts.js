@@ -125,6 +125,8 @@ router.get('/', async (req, res) => {
           -- Header (inventory_receipts_hdr)
           h.receipt_number,
           h.po_number,
+          po_hdr.company_no,
+          po_hdr.location_id,
           h.currency_id,
           h.approved,
           h.date_created,
@@ -159,6 +161,8 @@ router.get('/', async (req, res) => {
         ON l.receipt_number = h.receipt_number
       JOIN inv_mast im
         ON im.inv_mast_uid = l.inv_mast_uid
+      JOIN po_hdr
+        ON h.po_number = po_hdr.po_no
       LEFT JOIN drv_vendor_invoice_line dvil
         ON dvil.receipt_number = l.receipt_number
        AND dvil.po_line_number  = l.po_line_number
@@ -174,6 +178,8 @@ router.get('/', async (req, res) => {
         ON l.receipt_number = h.receipt_number
       JOIN inv_mast im
         ON im.inv_mast_uid = l.inv_mast_uid
+      JOIN po_hdr
+        ON h.po_number = po_hdr.po_no
       ${whereClause};
     `;
 
@@ -193,6 +199,8 @@ router.get('/', async (req, res) => {
         receipt = {
           receipt_number: row.receipt_number,
           po_number: row.po_number,
+          company_no: row.company_no ? String(row.company_no).trim() : null,
+          location_id: row.location_id ? String(row.location_id).trim() : null,
           currency: mapCurrencyIdToCode(row.currency_id),
           date_created: row.date_created,
           date_last_modified: row.date_last_modified,

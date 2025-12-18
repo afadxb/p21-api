@@ -222,6 +222,7 @@ const buildHeaderResponse = (header, lineMap, commentMap) => {
     externalSystemId: headerKey,
     isActive: header.delete_flag !== 'Y' && header.closed_flag !== 'Y',
     companyId: companyToken,
+    location_id: header.location_id ? String(header.location_id).trim() : null,
     amount,
     currencyCode: mapCurrencyIdToCode(header.currency_id),
     orderIdentifier: header.po_no ? String(header.po_no).trim() : null,

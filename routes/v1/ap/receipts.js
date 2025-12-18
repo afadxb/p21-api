@@ -51,6 +51,20 @@ router.get('/', async (req, res) => {
 
   const receiptNumberParam = parseOptionalInt(req.query.receipt_number ?? req.query.receiptNumber);
   const poNumberParam = parseOptionalInt(req.query.po_number ?? req.query.poNumber);
+  const updatedSinceRaw = req.query.updated_since ?? req.query.updatedSince;
+  let updatedSinceParam = null;
+
+  if (updatedSinceRaw !== undefined) {
+    const parsedDate = new Date(updatedSinceRaw);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return res.status(400).json({
+        error: 'updated_since/updatedSince must be a valid date.'
+      });
+    }
+
+    updatedSinceParam = parsedDate;
+  }
 
   if (receiptNumberParam === undefined || poNumberParam === undefined) {
     return res.status(400).json({
@@ -66,6 +80,10 @@ router.get('/', async (req, res) => {
       { name: 'po_number', type: sql.Int, value: poNumberParam },
       { name: 'min_order_date', type: sql.DateTime, value: DEFAULT_MIN_ORDER_DATE }
     ];
+
+    if (updatedSinceParam !== null) {
+      parameters.push({ name: 'updated_since', type: sql.DateTime, value: updatedSinceParam });
+    }
 
     const dataRequest = new sql.Request();
     const countRequest = new sql.Request();
@@ -84,6 +102,9 @@ router.get('/', async (req, res) => {
     }
     if (poNumberParam !== null) {
       whereClauses.push('h.po_number = @po_number');
+    }
+    if (updatedSinceParam !== null) {
+      whereClauses.push('h.date_last_modified >= @updated_since');
     }
 
     const whereClause = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';

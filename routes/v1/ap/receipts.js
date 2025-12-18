@@ -199,7 +199,7 @@ router.get('/', async (req, res) => {
         receipt = {
           receipt_number: row.receipt_number,
           po_number: row.po_number,
-          company_no: row.company_no ? String(row.company_no).trim() : null,
+          companyId: row.company_no ? String(row.company_no).trim() : null,
           location_id: row.location_id ? String(row.location_id).trim() : null,
           currency: mapCurrencyIdToCode(row.currency_id),
           date_created: row.date_created,

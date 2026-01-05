@@ -223,7 +223,7 @@ router.get('/', async (req, res) => {
         unitprice: row.pricing_unit,
         total: row.extended_cost,
         Uniypricing_unit: row.pricing_unit,
-        pricing_unit_size: row.pricing_unit_size,
+        unitprice_size: row.pricing_unit_size,
         vouch_complete: row.vouch_complete
       });
     });

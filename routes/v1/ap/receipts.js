@@ -218,10 +218,10 @@ router.get('/', async (req, res) => {
         item_desc: row.item_desc,        
         qty_received: row.qty_received,
         unit_size: row.unit_size,
-        unit_of_measure: row.unit_of_measure,
+        unit: row.unit_of_measure,
         unit_cost: row.unit_cost,
-        extended_cost: row.extended_cost,
-        pricing_unit: row.pricing_unit,
+        total: row.extended_cost,
+        Uniypricing_unit: row.pricing_unit,
         pricing_unit_size: row.pricing_unit_size,
         vouch_complete: row.vouch_complete
       });

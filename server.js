@@ -22,6 +22,14 @@ app.use('/v1/sales/order', require('./routes/v1/sales/order'));
 app.use('/v1/system/exch_rates', require('./routes/v1/system/exch_rates'));
 app.use('/v1/system/periods', require('./routes/v1/system/periods'));
 
+// Health check
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    uptime: process.uptime()
+  });
+});
+
 // Background jobs
 const { startExportJob } = require('./jobs/exportTmpOrders');
 startExportJob().catch((err) => {

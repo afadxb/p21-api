@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
 
-const parseRequiredInt = (value) => {
+const parseOptionalInt = (value) => {
   if (value === undefined || value === null || value === '') {
     return null;
   }
@@ -11,6 +11,29 @@ const parseRequiredInt = (value) => {
     return undefined;
   }
   return parsed;
+};
+
+const parsePositiveInt = (value, defaultValue) => {
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed < 1) {
+    return defaultValue;
+  }
+  return parsed;
+};
+
+const mapCurrencyIdToCode = (currencyId) => {
+  switch (currencyId) {
+    case 1:
+      return 'CAD';
+    case 3:
+      return 'USD';
+    case 4:
+      return 'EUR';
+    case 6:
+      return 'CNY';
+    default:
+      return currencyId ? String(currencyId).trim() : null;
+  }
 };
 
 const toIsoString = (value) => {
@@ -33,7 +56,7 @@ const formatVoucherHeader = (row) => ({
   invoiceDate: toIsoString(row.invoice_date),
   homeCurrencyAmount: row.home_currency_amt != null ? Number(row.home_currency_amt) : null,
   invoiceAmount: row.invoice_amount != null ? Number(row.invoice_amount) : null,
-  currencyId: row.currency_id != null ? Number(row.currency_id) : null,
+  currencyId: mapCurrencyIdToCode(row.currency_id),
   exchangeRate: row.exchange_rate != null ? Number(row.exchange_rate) : null,
   period: row.period != null ? Number(row.period) : null,
   yearForPeriod: row.year_for_period != null ? Number(row.year_for_period) : null,
@@ -49,6 +72,7 @@ const formatVoucherHeader = (row) => ({
 
 const formatVoucherDetail = (row) => ({
   voucherNumber: row.voucher_no ? String(row.voucher_no).trim() : null,
+  vendorId: row.vendor_id ? String(row.vendor_id).trim() : null,
   detailType: row.detail_type ? String(row.detail_type).trim() : null,
   itemId: row.item_id ? String(row.item_id).trim() : null,
   description: row.description ? String(row.description).trim() : null,
@@ -68,8 +92,16 @@ const formatVoucherDetail = (row) => ({
 });
 
 router.get('/', async (req, res) => {
-  const voucherParam = parseRequiredInt(req.query.voucher ?? req.query.voucherNo ?? req.query.voucher_no);
-  const vendorParam = parseRequiredInt(req.query.vendor ?? req.query.vendorId ?? req.query.vendor_id);
+  const page = parsePositiveInt(req.query.page, 1);
+  const requestedLimit = req.query.limit ?? req.query.page_size ?? req.query.pageSize;
+  let limit = parsePositiveInt(requestedLimit, 500);
+  if (limit > 2000) {
+    limit = 2000;
+  }
+  const offset = (page - 1) * limit;
+
+  const voucherParam = parseOptionalInt(req.query.voucher ?? req.query.voucherNo ?? req.query.voucher_no);
+  const vendorParam = parseOptionalInt(req.query.vendor ?? req.query.vendorId ?? req.query.vendor_id);
 
   if (voucherParam === undefined || vendorParam === undefined) {
     return res.status(400).json({
@@ -77,72 +109,102 @@ router.get('/', async (req, res) => {
     });
   }
 
-  if (voucherParam === null || vendorParam === null) {
-    return res.status(400).json({
-      error: 'voucher/voucherNo and vendor/vendorId are required.'
-    });
-  }
-
   try {
     await sql.connect(config);
 
+    const filters = [];
+    const parameters = [];
+    if (voucherParam !== null) {
+      filters.push('h.voucher_no = @voucher');
+      parameters.push({ name: 'voucher', type: sql.Int, value: voucherParam });
+    }
+    if (vendorParam !== null) {
+      filters.push('h.vendor_id = @vendor');
+      parameters.push({ name: 'vendor', type: sql.Int, value: vendorParam });
+    }
+
+    const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+
     const headerRequest = new sql.Request();
-    headerRequest.input('voucher', sql.Int, voucherParam);
-    headerRequest.input('vendor', sql.Int, vendorParam);
+    headerRequest.input('offset', sql.Int, offset);
+    headerRequest.input('limit', sql.Int, limit);
+    parameters.forEach((param) => {
+      headerRequest.input(param.name, param.type, param.value);
+    });
 
     const headerQuery = `
-      SELECT
-          h.voucher_no,
-          h.vendor_id,
-          h.company_no,
-          h.branch_id,
-          loc.location_id,
-          CASE WHEN h.po_no IS NULL THEN 'PO' ELSE 'Non-PO' END AS po_type,
-          h.po_no,
-          h.invoice_no,
-          h.invoice_date,
-          h.home_currency_amt,
-          h.invoice_amount,
-          h.currency_id,
-          h.exchange_rate,
-          h.period,
-          h.year_for_period,
-          h.disputed_flag,
-          h.freight_amount,
-          h.terms_amount_taken,
-          h.amount_paid,
-          (h.amount_paid
-           + h.terms_amount_taken
-           + h.iva_withheld_amount
-           + h.iva_terms_amount_taken) AS total_amount_paid,
-          h.paid_in_full,
-          h.approved,
-          h.reverse_flag AS canceled
-      FROM apinv_hdr h
-      OUTER APPLY (
-          SELECT TOP (1) l.location_id
-          FROM location l
-          WHERE l.company_id = h.company_no
-            AND l.default_branch_id = h.branch_id
-          ORDER BY l.location_id
-      ) loc
-      WHERE h.voucher_no = @voucher
-        AND h.vendor_id  = @vendor;
+      WITH filtered_headers AS (
+          SELECT
+              h.voucher_no,
+              h.vendor_id,
+              h.company_no,
+              h.branch_id,
+              loc.location_id,
+              CASE WHEN h.po_no IS NULL THEN 'PO' ELSE 'Non-PO' END AS po_type,
+              h.po_no,
+              h.invoice_no,
+              h.invoice_date,
+              h.home_currency_amt,
+              h.invoice_amount,
+              h.currency_id,
+              h.exchange_rate,
+              h.period,
+              h.year_for_period,
+              h.disputed_flag,
+              h.freight_amount,
+              h.terms_amount_taken,
+              h.amount_paid,
+              (h.amount_paid
+               + h.terms_amount_taken
+               + h.iva_withheld_amount
+               + h.iva_terms_amount_taken) AS total_amount_paid,
+              h.paid_in_full,
+              h.approved,
+              h.reverse_flag AS canceled,
+              ROW_NUMBER() OVER (ORDER BY h.voucher_no) AS rn
+          FROM apinv_hdr h
+          OUTER APPLY (
+              SELECT TOP (1) l.location_id
+              FROM location l
+              WHERE l.company_id = h.company_no
+                AND l.default_branch_id = h.branch_id
+              ORDER BY l.location_id
+          ) loc
+          ${whereClause}
+      )
+      SELECT *
+      FROM filtered_headers
+      WHERE rn BETWEEN @offset + 1 AND @offset + @limit
+      ORDER BY rn;
     `;
 
     const detailRequest = new sql.Request();
-    detailRequest.input('voucher', sql.Int, voucherParam);
-    detailRequest.input('vendor', sql.Int, vendorParam);
+    detailRequest.input('offset', sql.Int, offset);
+    detailRequest.input('limit', sql.Int, limit);
+    parameters.forEach((param) => {
+      detailRequest.input(param.name, param.type, param.value);
+    });
 
     const detailQuery = `
-      WITH hdr AS (
-          SELECT *
-          FROM apinv_hdr
-          WHERE voucher_no = @voucher
-            AND vendor_id = @vendor
+      WITH filtered_headers AS (
+          SELECT
+              h.voucher_no,
+              h.vendor_id,
+              ROW_NUMBER() OVER (ORDER BY h.voucher_no) AS rn
+          FROM apinv_hdr h
+          ${whereClause}
+      ),
+      hdr AS (
+          SELECT h.*
+          FROM apinv_hdr h
+          JOIN filtered_headers fh
+            ON fh.voucher_no = h.voucher_no
+           AND fh.vendor_id = h.vendor_id
+          WHERE fh.rn BETWEEN @offset + 1 AND @offset + @limit
       )
       SELECT
           h.voucher_no,
+          h.vendor_id,
           'LINE' AS detail_type,
           l.item_id,
           l.description,
@@ -167,6 +229,7 @@ router.get('/', async (req, res) => {
       UNION ALL
       SELECT
           h.voucher_no,
+          h.vendor_id,
           'CHARGE' AS detail_type,
           vpa.purchase_desc AS item_id,
           CAST(h.invoice_no AS VARCHAR(30)) AS description,
@@ -194,6 +257,7 @@ router.get('/', async (req, res) => {
       UNION ALL
       SELECT
           h.voucher_no,
+          h.vendor_id,
           'VAT' AS detail_type,
           vc.vat_cd AS item_id,
           vc.description,
@@ -222,19 +286,60 @@ router.get('/', async (req, res) => {
       ORDER BY detail_type, item_id;
     `;
 
-    const [headerResult, detailResult] = await Promise.all([
+    const countRequest = new sql.Request();
+    parameters.forEach((param) => {
+      countRequest.input(param.name, param.type, param.value);
+    });
+
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM apinv_hdr h
+      ${whereClause};
+    `;
+
+    const [headerResult, detailResult, countResult] = await Promise.all([
       headerRequest.query(headerQuery),
-      detailRequest.query(detailQuery)
+      detailRequest.query(detailQuery),
+      countRequest.query(countQuery)
     ]);
 
-    if (!headerResult.recordset || headerResult.recordset.length === 0) {
-      return res.status(404).json({ error: 'Voucher not found' });
-    }
+    const headers = headerResult.recordset || [];
+    const details = detailResult.recordset || [];
 
-    const header = formatVoucherHeader(headerResult.recordset[0]);
-    const details = (detailResult.recordset || []).map(formatVoucherDetail);
+    const detailMap = new Map();
+    details.forEach((row) => {
+      const voucherKey = row.voucher_no
+        ? `${String(row.voucher_no).trim()};${row.vendor_id ? String(row.vendor_id).trim() : ''}`
+        : `__unknown_${detailMap.size}`;
+      if (!detailMap.has(voucherKey)) {
+        detailMap.set(voucherKey, []);
+      }
+      detailMap.get(voucherKey).push(formatVoucherDetail(row));
+    });
 
-    return res.json({ header, details });
+    const data = headers.map((row) => {
+      const formattedHeader = formatVoucherHeader(row);
+      const detailKey = formattedHeader.voucherNumber
+        ? `${formattedHeader.voucherNumber};${formattedHeader.vendorId ?? ''}`
+        : `__unknown_${detailMap.size}`;
+      return {
+        header: formattedHeader,
+        details: detailMap.get(detailKey) || []
+      };
+    });
+
+    const total = countResult.recordset[0] ? countResult.recordset[0].total : 0;
+    const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
+    const lastPage = totalPages === 0 ? page === 1 : page >= totalPages;
+
+    return res.json({
+      data,
+      page,
+      pageSize: limit,
+      total,
+      totalPages,
+      lastPage
+    });
   } catch (error) {
     console.error('Failed to fetch voucher', error);
     return res.status(500).json({ error: 'Failed to fetch voucher' });

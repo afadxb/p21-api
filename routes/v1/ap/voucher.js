@@ -161,6 +161,7 @@ router.get('/', async (req, res) => {
               h.paid_in_full,
               h.approved,
               h.reverse_flag AS canceled,
+              h.date_last_modified,
               ROW_NUMBER() OVER (ORDER BY h.voucher_no) AS rn
           FROM apinv_hdr h
           OUTER APPLY (

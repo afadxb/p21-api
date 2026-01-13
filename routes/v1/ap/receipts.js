@@ -5,7 +5,6 @@ const { sql, config } = require('../../../db');
 const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 2000;
 const DEFAULT_MIN_ORDER_DATE = new Date('2020-01-01T00:00:00Z');
-const DEFAULT_MIN_LAST_MODIFIED = new Date('2020-01-01T00:00:00Z');
 
 const mapCurrencyIdToCode = (currencyId) => {
   switch (currencyId) {
@@ -79,8 +78,7 @@ router.get('/', async (req, res) => {
     const parameters = [
       { name: 'receipt_number', type: sql.Int, value: receiptNumberParam },
       { name: 'po_number', type: sql.Int, value: poNumberParam },
-      { name: 'min_order_date', type: sql.DateTime, value: DEFAULT_MIN_ORDER_DATE },
-      { name: 'min_last_modified', type: sql.DateTime2, value: DEFAULT_MIN_LAST_MODIFIED }
+      { name: 'min_order_date', type: sql.DateTime, value: DEFAULT_MIN_ORDER_DATE }
     ];
 
     if (updatedSinceParam !== null) {
@@ -100,8 +98,7 @@ router.get('/', async (req, res) => {
 
     const whereClauses = [
       "h.delete_flag = 'N'",
-      'h.date_created >= @min_order_date',
-      'h.date_last_modified >= @min_last_modified'
+      'h.date_created >= @min_order_date'
     ];
     if (receiptNumberParam !== null) {
       whereClauses.push('h.receipt_number = @receipt_number');

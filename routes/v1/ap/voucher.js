@@ -84,8 +84,7 @@ const formatVoucherDetail = (row) => ({
   lineFreightAmount: row.line_freight_amount != null ? Number(row.line_freight_amount) : null,
   lineFreightAmountDisplay: row.line_freight_amount_display != null
     ? Number(row.line_freight_amount_display)
-    : null,
-  lastMaintainedBy: row.last_maintained_by ? String(row.last_maintained_by).trim() : null
+    : null
 });
 
 router.get('/', async (req, res) => {

@@ -47,7 +47,7 @@ const toIsoString = (value) => {
 const formatVoucherHeader = (row) => ({
   voucherNumber: row.voucher_no ? String(row.voucher_no).trim() : null,
   vendorId: row.vendor_id ? String(row.vendor_id).trim() : null,
-  companyNumber: row.company_no ? String(row.company_no).trim() : null,
+  companyId: row.company_no ? String(row.company_no).trim() : null,
   branchId: row.branch_id ? String(row.branch_id).trim() : null,
   locationId: row.location_id ? String(row.location_id).trim() : null,
   poType: row.po_type ? String(row.po_type).trim() : null,
@@ -68,26 +68,23 @@ const formatVoucherHeader = (row) => ({
   paidInFull: row.paid_in_full === 'Y',
   approved: row.approved === 'Y',
   canceled: row.canceled === 'Y'
+  dateCreated: toIsoString(row.date_created),
+  dateLastModified: toIsoString(row.date_last_modified),
 });
 
 const formatVoucherDetail = (row) => ({
-  voucherNumber: row.voucher_no ? String(row.voucher_no).trim() : null,
-  vendorId: row.vendor_id ? String(row.vendor_id).trim() : null,
   detailType: row.detail_type ? String(row.detail_type).trim() : null,
   itemId: row.item_id ? String(row.item_id).trim() : null,
   description: row.description ? String(row.description).trim() : null,
   quantity: row.quantity != null ? Number(row.quantity) : null,
   unitPrice: row.unit_price != null ? Number(row.unit_price) : null,
   purchaseAmount: row.purchase_amount != null ? Number(row.purchase_amount) : null,
-  companyNumber: row.company_no ? String(row.company_no).trim() : null,
   disputed: row.disputed_flag === 'Y',
   disputedAmount: row.disputed_amt != null ? Number(row.disputed_amt) : null,
   lineFreightAmount: row.line_freight_amount != null ? Number(row.line_freight_amount) : null,
   lineFreightAmountDisplay: row.line_freight_amount_display != null
     ? Number(row.line_freight_amount_display)
     : null,
-  dateCreated: toIsoString(row.date_created),
-  dateLastModified: toIsoString(row.date_last_modified),
   lastMaintainedBy: row.last_maintained_by ? String(row.last_maintained_by).trim() : null
 });
 
@@ -161,6 +158,7 @@ router.get('/', async (req, res) => {
               h.paid_in_full,
               h.approved,
               h.reverse_flag AS canceled,
+              h.date_created,
               h.date_last_modified,
               ROW_NUMBER() OVER (ORDER BY h.voucher_no) AS rn
           FROM apinv_hdr h

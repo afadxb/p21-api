@@ -44,6 +44,8 @@ const toIsoString = (value) => {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 };
 
+const DEFAULT_MIN_LAST_MODIFIED = new Date('2020-01-01T00:00:00Z');
+
 const formatVoucherHeader = (row) => ({
   voucherNumber: row.voucher_no ? String(row.voucher_no).trim() : null,
   vendorId: row.vendor_id ? String(row.vendor_id).trim() : null,
@@ -67,7 +69,7 @@ const formatVoucherHeader = (row) => ({
   totalAmountPaid: row.total_amount_paid != null ? Number(row.total_amount_paid) : null,
   paidInFull: row.paid_in_full === 'Y',
   approved: row.approved === 'Y',
-  canceled: row.canceled === 'Y'
+  canceled: row.canceled === 'Y',
   dateCreated: toIsoString(row.date_created),
   dateLastModified: toIsoString(row.date_last_modified),
 });
@@ -108,8 +110,10 @@ router.get('/', async (req, res) => {
   try {
     await sql.connect(config);
 
-    const filters = [];
-    const parameters = [];
+    const filters = ['h.date_last_modified >= @min_last_modified'];
+    const parameters = [
+      { name: 'min_last_modified', type: sql.DateTime2, value: DEFAULT_MIN_LAST_MODIFIED }
+    ];
     if (voucherParam !== null) {
       filters.push('h.voucher_no = @voucher');
       parameters.push({ name: 'voucher', type: sql.Int, value: voucherParam });

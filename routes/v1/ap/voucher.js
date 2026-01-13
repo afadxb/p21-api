@@ -44,7 +44,7 @@ const toIsoString = (value) => {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 };
 
-const DEFAULT_MIN_LAST_MODIFIED = new Date('2020-01-01T00:00:00Z');
+const DEFAULT_MIN_DATE_CREATED = new Date('2020-01-01T00:00:00Z');
 
 const formatVoucherHeader = (row) => ({
   voucherNumber: row.voucher_no ? String(row.voucher_no).trim() : null,

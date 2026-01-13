@@ -325,7 +325,7 @@ router.get('/', async (req, res) => {
         : `__unknown_${detailMap.size}`;
       return {
         header: formattedHeader,
-        details: detailMap.get(detailKey) || []
+        lines: detailMap.get(detailKey) || []
       };
     });
 

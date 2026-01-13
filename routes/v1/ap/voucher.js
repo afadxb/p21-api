@@ -110,10 +110,11 @@ router.get('/', async (req, res) => {
   try {
     await sql.connect(config);
 
-    const filters = ['h.date_last_modified >= @min_last_modified'];
+    const filters = ['h.date_created >= @min_date_created'];
     const parameters = [
-      { name: 'min_last_modified', type: sql.DateTime2, value: DEFAULT_MIN_LAST_MODIFIED }
+      { name: 'min_date_created', type: sql.DateTime2, value: DEFAULT_MIN_DATE_CREATED }
     ];
+    
     if (voucherParam !== null) {
       filters.push('h.voucher_no = @voucher');
       parameters.push({ name: 'voucher', type: sql.Int, value: voucherParam });

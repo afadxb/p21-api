@@ -253,15 +253,8 @@ router.post('/', async (req, res) => {
           linesInserted
         };
 
-        const jobNameValue =
-          headerValues.jobName ??
-          order.header?.jobName ??
-          order.header?.jobname ??
-          order.header?.job_name;
-        const normalizedJobName = typeof jobNameValue === 'string' ? jobNameValue.trim() : jobNameValue;
-
-        if (!isEmpty(normalizedJobName)) {
-          responseOrder.referance1 = normalizedJobName;
+        if (!isEmpty(headerValues.jobName)) {
+          responseOrder.referance1 = headerValues.jobName;
         }
 
         responseOrders.push(responseOrder);

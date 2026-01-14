@@ -141,7 +141,7 @@ router.get('/', async (req, res) => {
               h.company_no,
               h.branch_id,
               loc.location_id,
-              CASE WHEN h.po_no IS NULL THEN 'PO' ELSE 'Non-PO' END AS po_type,
+              CASE WHEN h.po_no IS NULL THEN 'Non-PO' ELSE 'PO' END AS po_type,
               h.po_no,
               h.invoice_no,
               h.invoice_date,

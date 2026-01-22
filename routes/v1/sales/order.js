@@ -320,10 +320,11 @@ router.get('/:order_id', async (req, res) => {
     const lineRequest = new sql.Request();
     lineRequest.input('orderId', sql.Int, orderNumberForLines);
     const lineResult = await lineRequest.query(`
-      SELECT order_no, qty_ordered, delete_flag, line_no, complete, disposition,
-             qty_allocated, qty_on_pick_tickets, qty_invoiced, required_date,
-             unit_size, unit_quantity, customer_part_number, cancel_flag,
-             qty_canceled,
+      SELECT oe_line.order_no, oe_line.qty_ordered, oe_line.delete_flag, oe_line.line_no,
+             oe_line.complete, oe_line.disposition, oe_line.qty_allocated,
+             oe_line.qty_on_pick_tickets, oe_line.qty_invoiced, oe_line.required_date,
+             oe_line.unit_size, oe_line.unit_quantity, oe_line.customer_part_number,
+             oe_line.cancel_flag, oe_line.qty_canceled,
              CASE
                WHEN qty_invoiced >= qty_ordered THEN 'Fulfilled'
                WHEN qty_invoiced > 0 AND qty_invoiced < qty_ordered THEN 'Partially Fulfilled'
@@ -332,8 +333,10 @@ router.get('/:order_id', async (req, res) => {
                WHEN qty_allocated > 0 THEN 'In Progress'
                WHEN qty_ordered > 0 AND ISNULL(qty_allocated, 0) = 0 AND ISNULL(qty_invoiced, 0) = 0 AND ISNULL(qty_canceled, 0) = 0 THEN 'New'
                ELSE 'Unknown'
-             END AS status
+             END AS status,
+             inv_mast.item_id
       FROM oe_line
+      INNER JOIN inv_mast ON oe_line.inv_mast_uid = inv_mast.inv_mast_uid
       WHERE order_no = @orderId
     `);
 

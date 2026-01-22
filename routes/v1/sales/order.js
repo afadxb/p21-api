@@ -327,12 +327,12 @@ router.get('/:order_id', async (req, res) => {
              oe_line.unit_size, oe_line.unit_quantity, 
              oe_line.cancel_flag, oe_line.qty_canceled,
              CASE
-               WHEN qty_invoiced >= qty_ordered THEN 'Fulfilled'
-               WHEN qty_invoiced > 0 AND qty_invoiced < qty_ordered THEN 'Partially Fulfilled'
-               WHEN cancel_flag = 'Y' THEN 'Canceled'
-               WHEN delete_flag = 'Y' THEN 'Deleted'
-               WHEN qty_allocated > 0 THEN 'In Progress'
-               WHEN qty_ordered > 0 AND ISNULL(qty_allocated, 0) = 0 AND ISNULL(qty_invoiced, 0) = 0 AND ISNULL(qty_canceled, 0) = 0 THEN 'New'
+               WHEN oe_line.qty_invoiced >= oe_line.qty_ordered THEN 'Fulfilled'
+               WHEN oe_line.qty_invoiced > 0 AND oe_line.qty_invoiced < oe_line.qty_ordered THEN 'Partially Fulfilled'
+               WHEN oe_line.cancel_flag = 'Y' THEN 'Canceled'
+               WHEN oe_line.delete_flag = 'Y' THEN 'Deleted'
+               WHEN oe_line.qty_allocated > 0 THEN 'In Progress'
+               WHEN oe_line.qty_ordered > 0 AND ISNULL(oe_line.qty_allocated, 0) = 0 AND ISNULL(oe_line.qty_invoiced, 0) = 0 AND ISNULL(oe_line.qty_canceled, 0) = 0 THEN 'New'
                ELSE 'Unknown'
              END AS status
       FROM oe_line

@@ -150,7 +150,7 @@ const formatLine = (line, headerContext) => {
     reference2: headerContext.po_desc || null,
     //taxIndicator1: (line.tax_group_id ? String(line.tax_group_id).trim() || null : null),
     //taxIndicator2: null,
-    isTwoWayMatch: 'true'
+    isTwoWayMatch: 'false'
   };
 };
 
@@ -229,6 +229,8 @@ const buildHeaderResponse = (header, lineMap, commentMap) => {
     orderIdentifier2: header.external_po_no ? String(header.external_po_no).trim() : '',
     registerDate: toIsoString(header.order_date),
     dueDate: toIsoString(header.date_due),
+    PODate: toIsoString(header.date_created),
+    last_modified: toIsoString(header.date_last_modified),
     vendor: vendorToken,
     reference: requestedByName,
     reference2: header.po_desc ? String(header.po_desc).trim() : '',

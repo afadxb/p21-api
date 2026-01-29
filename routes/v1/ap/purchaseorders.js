@@ -302,12 +302,12 @@ const fetchPurchaseOrders = async (filters, options = {}) => {
   headerRequest.input('limit', sql.Int, limit);
 
   const whereFragments = buildHeaderFilters(headerRequest, filters);
-  const whereClause = whereFragments.length ? `WHERE po_hdr.delete_flag='N' AND ${whereFragments.join(' AND ')}` : '';
+  const whereClause = whereFragments.length ? `WHERE ${whereFragments.join(' AND ')}` : '';
 
   const countRequest = pool.request();
   const countWhereFragments = buildHeaderFilters(countRequest, filters);
   const countWhereClause = countWhereFragments.length
-    ? `WHERE po_hdr.delete_flag='N' AND ${countWhereFragments.join(' AND ')}`
+    ? `WHERE ${countWhereFragments.join(' AND ')}`
     : '';
   const countQuery = `
     SELECT COUNT(*) AS total
@@ -415,7 +415,7 @@ const fetchPurchaseOrders = async (filters, options = {}) => {
     FROM p21_view_po_line AS line WITH (NOLOCK)
     INNER JOIN po_hdr ON po_hdr.po_no = line.po_no AND po_hdr.company_no = line.company_no
     LEFT JOIN inv_loc ON inv_loc.inv_mast_uid = line.inv_mast_uid AND inv_loc.location_id = po_hdr.location_id
-    WHERE line.delete_flag='N' AND ${compositeWhere};
+    WHERE ${compositeWhere};
   `;
 
   const commentQuery = `

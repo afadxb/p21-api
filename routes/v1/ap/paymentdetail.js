@@ -31,12 +31,17 @@ const parsePositiveInt = (value, defaultValue) => {
   return parsed;
 };
 
-const toIsoString = (value) => {
+const normalizeDate = (value) => {
   if (!value) {
     return null;
   }
   const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const toIsoString = (value) => {
+  const date = normalizeDate(value);
+  return date ? date.toISOString() : null;
 };
 
 const formatPaymentDetailRow = (row) => ({
@@ -123,6 +128,16 @@ router.get('/', async (req, res) => {
 
   filters.push('payments.check_date IS NOT NULL');
 //  filters.push('apinv_hdr.check_date IS NOT NULL');
+
+  const updatedSinceRaw = req.query.updated_since || req.query.updatedSince;
+  if (updatedSinceRaw) {
+    const updatedSince = normalizeDate(updatedSinceRaw);
+    if (!updatedSince) {
+      return res.status(400).json({ error: 'Invalid updatedSince parameter. Expecting ISO 8601 date.' });
+    }
+    filters.push('payments.date_last_modified >= @updatedSince');
+    parameters.push({ name: 'updatedSince', type: sql.DateTime2, value: updatedSince });
+  }
 
   const companyParam = typeof req.query.company === 'string' ? req.query.company.trim() : null;
   if (companyParam) {

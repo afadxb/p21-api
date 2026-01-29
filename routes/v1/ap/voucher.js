@@ -21,6 +21,14 @@ const parsePositiveInt = (value, defaultValue) => {
   return parsed;
 };
 
+const normalizeDate = (value) => {
+  if (!value) {
+    return null;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
 const mapCurrencyIdToCode = (currencyId) => {
   switch (currencyId) {
     case 1:
@@ -37,11 +45,8 @@ const mapCurrencyIdToCode = (currencyId) => {
 };
 
 const toIsoString = (value) => {
-  if (!value) {
-    return null;
-  }
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  const date = normalizeDate(value);
+  return date ? date.toISOString() : null;
 };
 
 const DEFAULT_MIN_DATE_CREATED = new Date('2020-01-01T00:00:00Z');
@@ -100,11 +105,20 @@ router.get('/', async (req, res) => {
 
   const voucherParam = parseOptionalInt(req.query.voucher ?? req.query.voucherNo ?? req.query.voucher_no);
   const vendorParam = parseOptionalInt(req.query.vendor ?? req.query.vendorId ?? req.query.vendor_id);
+  const updatedSinceRaw = req.query.updated_since || req.query.updatedSince;
 
   if (voucherParam === undefined || vendorParam === undefined) {
     return res.status(400).json({
       error: 'voucher/voucherNo and vendor/vendorId must be integers when provided.'
     });
+  }
+
+  let updatedSince = null;
+  if (updatedSinceRaw) {
+    updatedSince = normalizeDate(updatedSinceRaw);
+    if (!updatedSince) {
+      return res.status(400).json({ error: 'Invalid updatedSince parameter. Expecting ISO 8601 date.' });
+    }
   }
 
   try {
@@ -122,6 +136,10 @@ router.get('/', async (req, res) => {
     if (vendorParam !== null) {
       filters.push('h.vendor_id = @vendor');
       parameters.push({ name: 'vendor', type: sql.Int, value: vendorParam });
+    }
+    if (updatedSince) {
+      filters.push('h.date_last_modified >= @updatedSince');
+      parameters.push({ name: 'updatedSince', type: sql.DateTime2, value: updatedSince });
     }
 
     const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';

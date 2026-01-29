@@ -85,14 +85,14 @@ router.get('/', async (req, res) => {
 
   const offset = (page - 1) * limit;
 
-  const updatedSinceParam = req.query.updated_since;
+  const updatedSinceParam = req.query.updated_since || req.query.updatedSince;
   const companyParam = typeof req.query.company === 'string' ? req.query.company.trim() : null;
 
   let updatedSinceDate = null;
   if (updatedSinceParam) {
-    updatedSinceDate = new Date(updatedSinceParam);
-    if (Number.isNaN(updatedSinceDate.getTime())) {
-      return res.status(400).json({ error: 'Invalid updated_since parameter. Expecting ISO 8601 date.' });
+    updatedSinceDate = normalizeDate(updatedSinceParam);
+    if (!updatedSinceDate) {
+      return res.status(400).json({ error: 'Invalid updatedSince parameter. Expecting ISO 8601 date.' });
     }
   }
 

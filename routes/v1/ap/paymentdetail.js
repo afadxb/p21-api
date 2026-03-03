@@ -139,6 +139,16 @@ router.get('/', async (req, res) => {
     parameters.push({ name: 'updatedSince', type: sql.DateTime2, value: updatedSince });
   }
 
+  const checkDateRaw = req.query.check_date || req.query.checkDate;
+  if (checkDateRaw) {
+    const checkDate = normalizeDate(checkDateRaw);
+    if (!checkDate) {
+      return res.status(400).json({ error: 'Invalid checkDate parameter. Expecting ISO 8601 date.' });
+    }
+    filters.push('CAST(payments.check_date AS DATE) = @checkDate');
+    parameters.push({ name: 'checkDate', type: sql.Date, value: checkDate });
+  }
+
   const companyParam = typeof req.query.company === 'string' ? req.query.company.trim() : null;
   if (companyParam) {
     filters.push('apinv_hdr.company_no = @company');

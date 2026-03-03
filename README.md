@@ -121,6 +121,10 @@ objects must include `customerId`, `companyId`, `salesLocationId`, `approved`,
 `unitQuantity`, and `unitOfMeasure`. Line numbers are automatically assigned in
 the order the lines appear in the payload.
 
+For line-level contract bin values, prefer `contractBinId`. The API also accepts
+`Contract_Bin_ID` and normalizes it before insert, and that value is included in
+the line export job output (`SOL*.txt`) via the `Contract_Bin_ID` column.
+
 Example payload for multiple orders:
 
 ```bash
@@ -254,5 +258,4 @@ Create `.env` before starting Compose:
 ```bash
 docker compose up -d
 ```
-
 

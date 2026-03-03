@@ -99,6 +99,16 @@ const lineParamList = lineFields.map((f) => `@${f.column}`).join(', ');
 
 const isEmpty = (value) => value === undefined || value === null || value === '';
 
+function normaliseLinePayload(line = {}) {
+  const normalised = { ...line };
+
+  if (isEmpty(normalised.contractBinId) && !isEmpty(normalised.Contract_Bin_ID)) {
+    normalised.contractBinId = normalised.Contract_Bin_ID;
+  }
+
+  return normalised;
+}
+
 function validateRecord(record, fields, recordName) {
   const missing = fields
     .filter((field) => field.required && !field.derived && isEmpty(record?.[field.key]))
@@ -183,7 +193,9 @@ router.post('/', async (req, res) => {
       }
 
       lines.forEach((line, lineIndex) => {
-        validateRecord(line, lineFields, `Order ${orderIndex + 1} line ${lineIndex + 1}`);
+        const normalisedLine = normaliseLinePayload(line);
+        order.lines[lineIndex] = normalisedLine;
+        validateRecord(normalisedLine, lineFields, `Order ${orderIndex + 1} line ${lineIndex + 1}`);
       });
     });
 

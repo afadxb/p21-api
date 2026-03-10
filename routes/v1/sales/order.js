@@ -16,7 +16,7 @@ const headerFields = [
   { column: 'Taker', key: 'taker', type: sql.NVarChar(30) },
   { column: 'Job_Name', key: 'jobName', type: sql.NVarChar(40) },
   { column: 'Order_Date', key: 'orderDate', type: sql.NVarChar(8) },
-  { column: 'Requested_Date', key: 'requestedDate', type: sql.NVarChar(8) },
+  { column: 'Requested_Date', key: 'requiredDate', type: sql.NVarChar(8) },
   { column: 'Quote', key: 'quote', type: sql.NVarChar(1) },
   { column: 'Approved', key: 'approved', type: sql.NVarChar(1) },
   { column: 'Ship_To_ID', key: 'shipToId', type: sql.Decimal(18, 2), required: true, numeric: true },
@@ -102,9 +102,9 @@ const isEmpty = (value) => value === undefined || value === null || value === ''
 function normaliseLinePayload(line = {}) {
   const normalised = { ...line };
 
-  if (isEmpty(normalised.contractBinId) && !isEmpty(normalised.Contract_Bin_ID)) {
-    normalised.contractBinId = normalised.Contract_Bin_ID;
-  }
+  // Ignore any inbound contract bin values from either payload shape.
+  normalised.contractBinId = null;
+  delete normalised.Contract_Bin_ID;
 
   return normalised;
 }

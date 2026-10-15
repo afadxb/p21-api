@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
+const logger = require('../../../utils/logger');
+const asyncHandler = require('../../../utils/asyncHandler');
 
 const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 2000;
@@ -40,7 +42,7 @@ const parsePositiveInt = (value, defaultValue) => {
   return parsed;
 };
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const page = parsePositiveInt(req.query.page, 1);
   const requestedLimit = req.query.limit ?? req.query.page_size ?? req.query.pageSize;
   let limit = parsePositiveInt(requestedLimit, DEFAULT_LIMIT);
@@ -72,8 +74,7 @@ router.get('/', async (req, res) => {
     });
   }
 
-  try {
-    await sql.connect(config);
+  await sql.connect(config);
 
     const parameters = [
       { name: 'receipt_number', type: sql.Int, value: receiptNumberParam },
@@ -140,8 +141,8 @@ router.get('/', async (req, res) => {
           l.qty_received,
           l.unit_size,
           l.unit_of_measure,
-          l.unit_cost,
-          l.extended_cost,
+          l.unit_cost_display,
+          l.extended_cost_display,
           l.pricing_unit,
           l.pricing_unit_size,
 
@@ -222,10 +223,10 @@ router.get('/', async (req, res) => {
         qty_received: row.qty_received,
         unit_size: row.unit_size,
         unit: row.unit_of_measure,
-        unit_cost: row.unit_cost,
+        unit_cost: row.unit_cost_display,
         unitprice: row.pricing_unit,
-        total: row.extended_cost,
-        Uniypricing_unit: row.pricing_unit,
+        total: row.extended_cost_display,
+        unitPricingUnit: row.pricing_unit,
         unitprice_size: row.pricing_unit_size,
         vouch_complete: row.vouch_complete
       });
@@ -236,10 +237,6 @@ router.get('/', async (req, res) => {
     const lastPage = totalPages === 0 ? page === 1 : page >= totalPages;
 
     return res.json({ receipts: receipts, page, limit, total, totalPages, lastPage });
-  } catch (err) {
-    console.error('Error fetching receipts', err);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
+}));
 
 module.exports = router;

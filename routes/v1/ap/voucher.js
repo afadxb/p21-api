@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
+const logger = require('../../../utils/logger');
+const asyncHandler = require('../../../utils/asyncHandler');
 
 const parseOptionalInt = (value) => {
   if (value === undefined || value === null || value === '') {
@@ -94,7 +96,7 @@ const formatVoucherDetail = (row) => ({
     : null
 });
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const page = parsePositiveInt(req.query.page, 1);
   const requestedLimit = req.query.limit ?? req.query.page_size ?? req.query.pageSize;
   let limit = parsePositiveInt(requestedLimit, 500);
@@ -121,8 +123,7 @@ router.get('/', async (req, res) => {
     }
   }
 
-  try {
-    await sql.connect(config);
+  await sql.connect(config);
 
     const filters = ['h.date_created >= @min_date_created'];
     const parameters = [
@@ -361,10 +362,6 @@ router.get('/', async (req, res) => {
       totalPages,
       lastPage
     });
-  } catch (error) {
-    console.error('Failed to fetch voucher', error);
-    return res.status(500).json({ error: 'Failed to fetch voucher' });
-  }
-});
+}));
 
 module.exports = router;

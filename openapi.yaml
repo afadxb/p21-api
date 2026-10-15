@@ -2,8 +2,7 @@ openapi: 3.0.3
 info:
   title: P21 API
   version: 1.0.0
-  description: |
-    OpenAPI documentation refreshed to match currently mounted routes in `server.js`.
+  description: REST API interface to Prophet 21 ERP (SQL Server) for SRX integration.
 
 servers:
   - url: http://localhost:3000
@@ -36,10 +35,17 @@ paths:
                     type: number
                     example: 123.45
 
+  # ── Sales ─────────────────────────────────────────────────────────────
+
   /v1/sales/order:
     post:
       tags: [Sales]
       summary: Create one or more sales orders
+      description: >
+        Accepts a batch of orders or a single order object. Each order must
+        include a header and at least one line. Lines without a unitPrice
+        require a contractNumber on the header. Inbound contractBinId values
+        on lines are ignored.
       requestBody:
         required: true
         content:
@@ -48,6 +54,37 @@ paths:
               oneOf:
                 - $ref: '#/components/schemas/SalesOrderBatchRequest'
                 - $ref: '#/components/schemas/SalesOrderSingleRequest'
+            examples:
+              batch:
+                summary: Batch of orders
+                value:
+                  orders:
+                    - header:
+                        customerId: 1234
+                        companyId: "01"
+                        salesLocationId: 1
+                        shipToId: 5678
+                        customerPoNumber: "PO-100"
+                        taker: "API"
+                        approved: "N"
+                      lines:
+                        - itemId: "WIDGET-A"
+                          unitQuantity: 10
+                          unitOfMeasure: "EA"
+                          unitPrice: "25.00"
+              single:
+                summary: Single order
+                value:
+                  header:
+                    customerId: 1234
+                    companyId: "01"
+                    salesLocationId: 1
+                    shipToId: 5678
+                  lines:
+                    - itemId: "WIDGET-A"
+                      unitQuantity: 5
+                      unitOfMeasure: "EA"
+                      unitPrice: "25.00"
       responses:
         '201':
           description: Sales orders accepted
@@ -62,52 +99,197 @@ paths:
                   orders:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        importSetNo:
-                          type: string
-                        linesInserted:
-                          type: integer
+                      $ref: '#/components/schemas/SalesOrderCreatedResponse'
         '400':
-          description: Invalid payload
+          description: Validation error (missing required fields, no lines, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Server error
+
+  /v1/sales/order/_debug:
+    get:
+      tags: [Sales]
+      summary: Debug endpoint for DB connection and order lookup
+      description: >
+        Only available when ENABLE_DEBUG_ROUTES=true. Returns connection info
+        and optional order lookup results.
+      parameters:
+        - in: query
+          name: order
+          schema:
+            type: string
+          description: Order number or job name to look up
+        - in: query
+          name: order_id
+          schema:
+            type: string
+          description: Alias for order
+        - in: query
+          name: id
+          schema:
+            type: string
+          description: Alias for order
+      responses:
+        '200':
+          description: Debug info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection:
+                    type: object
+                    properties:
+                      db:
+                        type: string
+                      server:
+                        type: string
+                      login:
+                        type: string
+                      system_user:
+                        type: string
+                  input:
+                    type: object
+                    properties:
+                      order:
+                        type: string
+                        nullable: true
+                  checks:
+                    type: object
+                    properties:
+                      headerCount:
+                        type: integer
+                        nullable: true
+                      headerSample:
+                        type: object
+                        nullable: true
+                      lineCount:
+                        type: integer
+                        nullable: true
+        '403':
+          description: Debug routes disabled
 
   /v1/sales/order/{order_id}:
     get:
       tags: [Sales]
-      summary: Get sales order by order number or job name
+      summary: Get a sales order by order number or job name
       parameters:
         - in: path
           name: order_id
           required: true
           schema:
             type: string
+          description: Numeric order_no or job_name string
       responses:
         '200':
-          description: Sales order details
+          description: Sales order with header and lines
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   header:
-                    type: object
-                    additionalProperties: true
+                    $ref: '#/components/schemas/SalesOrderHeader'
                   lines:
                     type: array
                     items:
-                      type: object
-                      additionalProperties: true
+                      $ref: '#/components/schemas/SalesOrderLine'
         '404':
           description: Order not found
-        '500':
-          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Inventory ─────────────────────────────────────────────────────────
 
   /v1/inventory/items:
     get:
       tags: [Inventory]
-      summary: List items
+      summary: List inventory items
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            default: 500
+        - in: query
+          name: inactive
+          schema:
+            type: string
+            enum: ['true', 'false']
+          description: Filter by inactive flag. "false" returns active items only.
+        - in: query
+          name: order
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+          description: Sort direction for item_id
+      responses:
+        '200':
+          description: Paginated items list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        item_id:
+                          type: string
+                        item_desc:
+                          type: string
+                  totalCount:
+                    type: integer
+                  page:
+                    type: integer
+                  totalPages:
+                    type: integer
+
+  /v1/inventory/items/{item_id}:
+    get:
+      tags: [Inventory]
+      summary: Get a single inventory item
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Item details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+        '404':
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Accounts Payable ──────────────────────────────────────────────────
+
+  /v1/ap/suppliers:
+    get:
+      tags: [Accounts Payable]
+      summary: List suppliers
       parameters:
         - in: query
           name: page
@@ -122,153 +304,46 @@ paths:
             minimum: 1
             maximum: 2000
             default: 500
-        - in: query
-          name: updatedSince
-          schema:
-            type: string
-            format: date-time
+          description: Also accepts page_size or pageSize.
         - in: query
           name: updated_since
           schema:
             type: string
             format: date-time
-      responses:
-        '200':
-          description: Items list
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-
-  /v1/inventory/items/{item_id}:
-    get:
-      tags: [Inventory]
-      summary: Get one item
-      parameters:
-        - in: path
-          name: item_id
-          required: true
+          description: ISO 8601 date. Also accepts updatedSince.
+        - in: query
+          name: company
           schema:
             type: string
+          description: Filter by company_id
       responses:
         '200':
-          description: Item details
+          description: Paginated supplier list
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
-        '404':
-          description: Not found
-
-  /v1/ap/purchaseorders:
-    get:
-      tags: [Accounts Payable]
-      summary: List purchase orders
-      parameters:
-        - in: query
-          name: page
-          schema: { type: integer, minimum: 1, default: 1 }
-        - in: query
-          name: limit
-          schema: { type: integer, minimum: 1, maximum: 2000, default: 500 }
-        - in: query
-          name: company
-          schema: { type: string }
-        - in: query
-          name: vendor
-          schema: { type: string }
-        - in: query
-          name: updatedSince
-          schema: { type: string, format: date-time }
-        - in: query
-          name: updated_since
-          schema: { type: string, format: date-time }
-        - in: query
-          name: fromDate
-          schema: { type: string, format: date }
-        - in: query
-          name: toDate
-          schema: { type: string, format: date }
-      responses:
-        '200':
-          description: Purchase orders list
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-
-  /v1/ap/purchaseorders/{poNo}:
-    get:
-      tags: [Accounts Payable]
-      summary: Get purchase order details
-      parameters:
-        - in: path
-          name: poNo
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Purchase order details
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-        '404':
-          description: Not found
-
-  /v1/ap/paymentdetail:
-    get:
-      tags: [Accounts Payable]
-      summary: List payment details
-      parameters:
-        - in: query
-          name: page
-          schema: { type: integer, minimum: 1, default: 1 }
-        - in: query
-          name: limit
-          schema: { type: integer, minimum: 1, maximum: 2000, default: 500 }
-        - in: query
-          name: company
-          schema: { type: string }
-        - in: query
-          name: vendor
-          schema: { type: string }
-        - in: query
-          name: voucherNo
-          schema: { type: string }
-        - in: query
-          name: invoiceNo
-          schema: { type: string }
-        - in: query
-          name: poNo
-          schema: { type: string }
-        - in: query
-          name: updatedSince
-          schema: { type: string, format: date-time }
-        - in: query
-          name: updated_since
-          schema: { type: string, format: date-time }
-        - in: query
-          name: checkDate
-          schema: { type: string, format: date }
-        - in: query
-          name: check_date
-          schema: { type: string, format: date }
-      responses:
-        '200':
-          description: Payment details list
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaymentDetailListResponse'
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Supplier'
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  lastPage:
+                    type: boolean
         '400':
-          description: Invalid filter values
-        '500':
-          description: Server error
+          description: Invalid updatedSince parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v1/ap/paymentterms:
     get:
@@ -277,133 +352,372 @@ paths:
       parameters:
         - in: query
           name: page
-          schema: { type: integer, minimum: 1, default: 1 }
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
         - in: query
           name: limit
-          schema: { type: integer, minimum: 1, maximum: 2000, default: 500 }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 500
+          description: Also accepts page_size or pageSize.
         - in: query
           name: updated_since
-          schema: { type: string, format: date-time }
+          schema:
+            type: string
+            format: date-time
+          description: ISO 8601 date filter on terms.date_last_modified
+        - in: query
+          name: companyId
+          schema:
+            type: string
+          description: Prepended to externalSystemId when provided
       responses:
         '200':
-          description: Payment terms list
+          description: Paginated payment terms list
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PaymentTerm'
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+                  total:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  lastPage:
+                    type: boolean
+        '400':
+          description: Invalid updated_since parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /v1/ap/suppliers:
+  /v1/ap/purchaseorders:
     get:
       tags: [Accounts Payable]
-      summary: List suppliers
+      summary: List purchase orders
+      description: >
+        Returns purchase orders with nested lines and comments.
+        Only orders with order_date >= 2020-01-01 are included.
       parameters:
         - in: query
           name: page
-          schema: { type: integer, minimum: 1, default: 1 }
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
         - in: query
           name: limit
-          schema: { type: integer, minimum: 1, maximum: 2000, default: 500 }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 500
+          description: Also accepts pageSize or page_size.
         - in: query
-          name: updatedSince
-          schema: { type: string, format: date-time }
+          name: company
+          schema:
+            type: string
+          description: Filter by company_no. Also accepts companyId.
+        - in: query
+          name: vendor
+          schema:
+            type: string
+          description: Filter by vendor_id. Also accepts vendorId.
+        - in: query
+          name: po_no
+          schema:
+            type: string
+          description: Filter by PO number. Also accepts poNo or poNumber.
         - in: query
           name: updated_since
-          schema: { type: string, format: date-time }
+          schema:
+            type: string
+            format: date-time
+          description: ISO 8601 date. Also accepts updatedSince.
+        - in: query
+          name: order_date_from
+          schema:
+            type: string
+            format: date-time
+          description: Also accepts orderDateFrom.
+        - in: query
+          name: order_date_to
+          schema:
+            type: string
+            format: date-time
+          description: Also accepts orderDateTo.
       responses:
         '200':
-          description: Suppliers list
+          description: Paginated purchase orders
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
+                properties:
+                  purchaseOrders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PurchaseOrder'
+                  footer:
+                    $ref: '#/components/schemas/PaginationFooter'
+        '400':
+          description: Invalid filter values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/ap/purchaseorders/{poNo}:
+    get:
+      tags: [Accounts Payable]
+      summary: Get a single purchase order
+      parameters:
+        - in: path
+          name: poNo
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: company
+          schema:
+            type: string
+          description: Also accepts companyId.
+        - in: query
+          name: updated_since
+          schema:
+            type: string
+            format: date-time
+          description: Also accepts updatedSince.
+      responses:
+        '200':
+          description: Purchase order with lines and comments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        '404':
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/ap/paymentdetail:
+    get:
+      tags: [Accounts Payable]
+      summary: List payment details
+      description: >
+        Returns voucher-grouped payment details with nested payment lines.
+        Only rows with a non-null check_date are included.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 500
+          description: Also accepts page_size or pageSize.
+        - in: query
+          name: updated_since
+          schema:
+            type: string
+            format: date-time
+          description: ISO 8601 date. Also accepts updatedSince.
+        - in: query
+          name: check_date
+          schema:
+            type: string
+            format: date
+          description: Filter by exact check date. Also accepts checkDate.
+        - in: query
+          name: company
+          schema:
+            type: string
+        - in: query
+          name: vendor
+          schema:
+            type: string
+        - in: query
+          name: voucherNo
+          schema:
+            type: string
+        - in: query
+          name: invoiceNo
+          schema:
+            type: string
+        - in: query
+          name: poNo
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated payment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentDetailListResponse'
+        '400':
+          description: Invalid filter values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v1/ap/receipts:
     get:
       tags: [Accounts Payable]
-      summary: List AP receipts
+      summary: List inventory receipts
+      description: >
+        Returns receipts with nested line items. Only non-deleted receipts
+        with date_created >= 2020-01-01 are included.
       parameters:
         - in: query
           name: page
-          schema: { type: integer, minimum: 1, default: 1 }
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
         - in: query
           name: limit
-          schema: { type: integer, minimum: 1, maximum: 2000, default: 500 }
-        - in: query
-          name: receiptNumber
-          schema: { type: integer }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 500
+          description: Also accepts page_size or pageSize.
         - in: query
           name: receipt_number
-          schema: { type: integer }
-        - in: query
-          name: poNumber
-          schema: { type: integer }
+          schema:
+            type: integer
+          description: Also accepts receiptNumber.
         - in: query
           name: po_number
-          schema: { type: integer }
-        - in: query
-          name: updatedSince
-          schema: { type: string, format: date-time }
+          schema:
+            type: integer
+          description: Also accepts poNumber.
         - in: query
           name: updated_since
-          schema: { type: string, format: date-time }
+          schema:
+            type: string
+            format: date-time
+          description: ISO 8601 date. Also accepts updatedSince.
       responses:
         '200':
-          description: Receipt list
+          description: Paginated receipts
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
+                properties:
+                  receipts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Receipt'
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  lastPage:
+                    type: boolean
         '400':
-          description: Invalid filters
+          description: Invalid filter values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v1/ap/voucher:
     get:
       tags: [Accounts Payable]
       summary: List vouchers
+      description: >
+        Returns voucher headers with nested detail lines (LINE, CHARGE, VAT).
+        Only vouchers with date_created >= 2020-01-01 are included.
       parameters:
         - in: query
           name: page
-          schema: { type: integer, minimum: 1, default: 1 }
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
         - in: query
           name: limit
-          schema: { type: integer, minimum: 1, maximum: 2000, default: 500 }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 500
+          description: Also accepts page_size or pageSize.
         - in: query
           name: voucher
-          schema: { type: integer }
-        - in: query
-          name: voucherNo
-          schema: { type: integer }
-        - in: query
-          name: voucher_no
-          schema: { type: integer }
+          schema:
+            type: integer
+          description: Filter by voucher number. Also accepts voucherNo or voucher_no.
         - in: query
           name: vendor
-          schema: { type: integer }
-        - in: query
-          name: vendorId
-          schema: { type: integer }
-        - in: query
-          name: vendor_id
-          schema: { type: integer }
-        - in: query
-          name: updatedSince
-          schema: { type: string, format: date-time }
+          schema:
+            type: integer
+          description: Filter by vendor ID. Also accepts vendorId or vendor_id.
         - in: query
           name: updated_since
-          schema: { type: string, format: date-time }
+          schema:
+            type: string
+            format: date-time
+          description: ISO 8601 date. Also accepts updatedSince.
       responses:
         '200':
-          description: Voucher list
+          description: Paginated voucher list
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VoucherEnvelope'
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+                  total:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  lastPage:
+                    type: boolean
         '400':
-          description: Invalid filters
+          description: Invalid filter values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── System ────────────────────────────────────────────────────────────
 
   /v1/system/exch_rates:
     get:
@@ -417,28 +731,21 @@ paths:
               schema:
                 type: array
                 items:
-                  type: object
-                  properties:
-                    from_currency: { type: string }
-                    to_currency: { type: string }
-                    exchange_rate: { type: number }
-                    reverse_exchange_rate: { type: number }
-                    exchange_date: { type: string, format: date-time }
+                  $ref: '#/components/schemas/ExchangeRate'
 
   /v1/system/periods:
     get:
       tags: [System]
-      summary: List periods for current year
+      summary: List periods for the current year
       responses:
         '200':
-          description: Periods
+          description: Periods for the current calendar year
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
-                  additionalProperties: true
+                  $ref: '#/components/schemas/Period'
 
   /v1/system/periods/{year}:
     get:
@@ -450,34 +757,44 @@ paths:
           required: true
           schema:
             type: integer
+          description: Four-digit year
       responses:
         '200':
-          description: Periods
+          description: Periods for the given year
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
-                  additionalProperties: true
+                  $ref: '#/components/schemas/Period'
         '400':
           description: Invalid year parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+
+    # ── Sales schemas ───────────────────────────────────────────────────
+
     SalesOrderSingleRequest:
       type: object
       required: [header, lines]
       properties:
         header:
-          type: object
-          additionalProperties: true
+          $ref: '#/components/schemas/SalesOrderInputHeader'
         lines:
           type: array
           minItems: 1
           items:
-            type: object
-            additionalProperties: true
+            $ref: '#/components/schemas/SalesOrderInputLine'
 
     SalesOrderBatchRequest:
       type: object
@@ -489,31 +806,710 @@ components:
           items:
             $ref: '#/components/schemas/SalesOrderSingleRequest'
 
+    SalesOrderInputHeader:
+      type: object
+      required:
+        - customerId
+        - companyId
+        - salesLocationId
+        - shipToId
+      properties:
+        customerId:
+          type: number
+        customerName:
+          type: string
+        companyId:
+          type: string
+        salesLocationId:
+          type: number
+        customerPoNumber:
+          type: string
+        contactId:
+          type: string
+        contactName:
+          type: string
+        taker:
+          type: string
+          default: API
+        jobName:
+          type: string
+        orderDate:
+          type: string
+          description: YYYYMMDD format
+        requiredDate:
+          type: string
+          description: YYYYMMDD format
+        quote:
+          type: string
+          enum: ['Y', 'N']
+        approved:
+          type: string
+          enum: ['Y', 'N']
+          default: 'N'
+        shipToId:
+          type: number
+        shipToName:
+          type: string
+        shipToAddress1:
+          type: string
+        shipToAddress2:
+          type: string
+        shipToCity:
+          type: string
+        shipToState:
+          type: string
+        shipToZipCode:
+          type: string
+        shipToCountry:
+          type: string
+        sourceLocationId:
+          type: number
+        carrierId:
+          type: number
+        carrierName:
+          type: string
+        route:
+          type: string
+        packingBasis:
+          type: string
+        deliveryInstructions:
+          type: string
+        terms:
+          type: string
+        termsDesc:
+          type: string
+        willCall:
+          type: string
+          enum: ['Y', 'N']
+        class1:
+          type: string
+        class2:
+          type: string
+        class3:
+          type: string
+        class4:
+          type: string
+        class5:
+          type: string
+        rmaFlag:
+          type: string
+          enum: ['Y', 'N']
+        freightCode:
+          type: string
+        thirdPartyBillingFlagDesc:
+          type: string
+        captureUsageDefault:
+          type: string
+          enum: ['Y', 'N']
+        allocate:
+          type: string
+          enum: ['Y', 'N']
+        contractNumber:
+          type: string
+        invoiceBatchNumber:
+          type: string
+        shipToEmailAddress:
+          type: string
+        setInvoiceExchangeRateSourceDesc:
+          type: string
+        shipToPhone:
+          type: string
+        currencyId:
+          type: string
+        applyBuilderAllowanceFlag:
+          type: string
+          enum: ['Y', 'N']
+        quoteExpirationDate:
+          type: string
+          description: YYYYMMDD format
+        promiseDate:
+          type: string
+          description: YYYYMMDD format
+
+    SalesOrderInputLine:
+      type: object
+      required:
+        - itemId
+        - unitQuantity
+        - unitOfMeasure
+      properties:
+        itemId:
+          type: string
+        unitQuantity:
+          type: number
+        unitOfMeasure:
+          type: string
+        unitPrice:
+          type: string
+          description: Required when header has no contractNumber
+        extendedDescription:
+          type: string
+        sourceLocationId:
+          type: number
+        shipLocationId:
+          type: number
+        productGroupId:
+          type: string
+        supplierId:
+          type: number
+        supplierName:
+          type: string
+        requiredDate:
+          type: string
+          description: YYYYMMDD format
+        expediteDate:
+          type: string
+          description: YYYYMMDD format
+        willCall:
+          type: string
+          enum: ['Y', 'N']
+        taxItem:
+          type: string
+          enum: ['Y', 'N']
+        okToInterchange:
+          type: string
+          enum: ['Y', 'N']
+        pricingUnit:
+          type: string
+        commissionCost:
+          type: string
+        otherCost:
+          type: string
+        poCost:
+          type: string
+        disposition:
+          type: string
+        scheduled:
+          type: string
+          enum: ['Y', 'N']
+        manualPriceOverride:
+          type: string
+          enum: ['Y', 'N']
+        commissionCostEdited:
+          type: string
+          enum: ['Y', 'N']
+        otherCostEdited:
+          type: string
+          enum: ['Y', 'N']
+        captureUsage:
+          type: string
+          enum: ['Y', 'N']
+        tagAndHoldClassId:
+          type: string
+        contractNo:
+          type: string
+        allocationQty:
+          type: number
+        promiseDate:
+          type: string
+          description: YYYYMMDD format
+        note:
+          type: string
+          maxLength: 512
+          description: Optional note for this line item
+
+    SalesOrderCreatedResponse:
+      type: object
+      properties:
+        importSetNo:
+          type: string
+        linesInserted:
+          type: integer
+        referance1:
+          type: string
+          description: Present when jobName was provided
+
+    SalesOrderHeader:
+      type: object
+      properties:
+        order_no:
+          type: integer
+        customer_id:
+          type: number
+        order_date:
+          type: string
+          format: date-time
+        ship2_name:
+          type: string
+        ship2_add1:
+          type: string
+        po_no:
+          type: string
+        job_price_hdr_uid:
+          type: integer
+        delete_flag:
+          type: string
+        completed:
+          type: string
+        company_id:
+          type: string
+        date_created:
+          type: string
+          format: date-time
+        po_no_append:
+          type: string
+        location_id:
+          type: number
+        carrier_id:
+          type: number
+        address_id:
+          type: number
+        taker:
+          type: string
+        order_ref:
+          type: string
+          description: Original job_name value
+        approved:
+          type: string
+        cancel_flag:
+          type: string
+        promise_date:
+          type: string
+          format: date-time
+        ups_code:
+          type: string
+        expedite_date:
+          type: string
+          format: date-time
+        validation_status:
+          type: string
+        status:
+          type: string
+          enum: [Canceled, Deleted, Completed, Unapproved, Open]
+
+    SalesOrderLine:
+      type: object
+      properties:
+        order_no:
+          type: integer
+        qty_ordered:
+          type: number
+        delete_flag:
+          type: string
+        line_no:
+          type: number
+        item_id:
+          type: string
+        customer_part_number:
+          type: string
+        complete:
+          type: string
+        disposition:
+          type: string
+        qty_allocated:
+          type: number
+        qty_on_pick_tickets:
+          type: number
+        qty_invoiced:
+          type: number
+        required_date:
+          type: string
+          format: date-time
+        unit_size:
+          type: number
+        unit_quantity:
+          type: number
+        cancel_flag:
+          type: string
+        qty_canceled:
+          type: number
+        status:
+          type: string
+          enum: [Fulfilled, Partially Fulfilled, Canceled, Deleted, In Progress, New, Unknown]
+
+    # ── Inventory schemas ───────────────────────────────────────────────
+
+    InventoryItem:
+      type: object
+      properties:
+        item_id:
+          type: string
+        inv_mast_uid:
+          type: integer
+        item_desc:
+          type: string
+        delete_flag:
+          type: string
+        weight:
+          type: number
+        net_weight:
+          type: number
+        inactive:
+          type: string
+        default_sales_discount_group:
+          type: string
+        extended_desc:
+          type: string
+        keywords:
+          type: string
+        base_unit:
+          type: string
+        commodity_code:
+          type: string
+        length:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+
+    # ── AP schemas ──────────────────────────────────────────────────────
+
+    Supplier:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        companyId:
+          type: string
+          nullable: true
+        currencyCode:
+          type: string
+          nullable: true
+        name:
+          type: string
+          nullable: true
+        paymentTerm:
+          type: string
+          nullable: true
+        supplierId:
+          type: string
+          nullable: true
+        ledgerDimension1:
+          type: string
+          nullable: true
+        taxDimension1:
+          type: string
+          nullable: true
+        clearance1Dimension1:
+          type: string
+          nullable: true
+        taxIndicator1:
+          type: string
+          nullable: true
+        taxIndicator2:
+          type: string
+          nullable: true
+        streetAddress:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        zip:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        telephone:
+          type: string
+          nullable: true
+        fax:
+          type: string
+          nullable: true
+        homepage:
+          type: string
+          nullable: true
+        emailAddress:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        isProcurable:
+          type: boolean
+        prepayment:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        terms:
+          type: object
+          properties:
+            id:
+              type: string
+              nullable: true
+            description:
+              type: string
+              nullable: true
+            discountPercent:
+              type: number
+              nullable: true
+            discountDays:
+              type: integer
+              nullable: true
+            netDays:
+              type: integer
+              nullable: true
+
+    PaymentTerm:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+        isActive:
+          type: boolean
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              cashDiscountPercentage:
+                type: number
+              endOfMonth:
+                type: boolean
+              numberOfDays:
+                type: integer
+              numberOfMonths:
+                type: integer
+        companyId:
+          type: string
+          nullable: true
+        paymentTermId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        startDate:
+          type: object
+          nullable: true
+          properties:
+            type:
+              type: string
+              example: InvoiceDate
+            numberOfMonths:
+              type: integer
+
+    PurchaseOrder:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+        isActive:
+          type: boolean
+        companyId:
+          type: string
+          nullable: true
+        location_id:
+          type: string
+          nullable: true
+        amount:
+          type: number
+          nullable: true
+        currencyCode:
+          type: string
+          nullable: true
+        orderIdentifier:
+          type: string
+          nullable: true
+        orderIdentifier2:
+          type: string
+        registerDate:
+          type: string
+          format: date-time
+          nullable: true
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        PODate:
+          type: string
+          format: date-time
+          nullable: true
+        last_modified:
+          type: string
+          format: date-time
+          nullable: true
+        vendor:
+          type: string
+          nullable: true
+        reference:
+          type: string
+          nullable: true
+        reference2:
+          type: string
+        paymentTerm:
+          type: string
+        purchaseOrderLines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderLine'
+        purchaseOrderComments:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderComment'
+
+    PurchaseOrderLine:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+        isActive:
+          type: boolean
+        amount:
+          type: number
+          nullable: true
+        dimensions:
+          type: string
+          nullable: true
+        lineNumber:
+          type: string
+        itemId:
+          type: string
+          nullable: true
+        itemDescription:
+          type: string
+          nullable: true
+        qtyOrdered:
+          type: number
+        qtyReceived:
+          type: number
+        qtyToVouch:
+          type: number
+          nullable: true
+        unitSize:
+          type: number
+          nullable: true
+        unit:
+          type: string
+          nullable: true
+        pricingUnitSize:
+          type: number
+          nullable: true
+        unitPrice:
+          type: number
+        pricingUnit:
+          type: string
+          nullable: true
+        mfgPartNo:
+          type: string
+          nullable: true
+        isComplete:
+          type: boolean
+        isCanceled:
+          type: boolean
+        isClosed:
+          type: boolean
+        isVouchCompleted:
+          type: boolean
+        deleteFlag:
+          type: boolean
+        reference:
+          type: string
+          nullable: true
+        reference2:
+          type: string
+          nullable: true
+        isTwoWayMatch:
+          type: string
+
+    PurchaseOrderComment:
+      type: object
+      properties:
+        erpSourceId:
+          type: string
+        externalSystemId:
+          type: string
+        commentDate:
+          type: string
+          format: date-time
+          nullable: true
+        comment:
+          type: string
+          nullable: true
+
+    PaginationFooter:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        lastPage:
+          type: boolean
+
     PaymentDetailLine:
       type: object
       properties:
-        method: { type: string, nullable: true }
-        checkNumber: { type: string, nullable: true }
-        checkDate: { type: string, format: date-time, nullable: true }
-        paidInFull: { type: boolean }
-        amountPaid: { type: number }
-        termsAmountTaken: { type: number }
+        method:
+          type: string
+          nullable: true
+          enum: [ACH/EFT, Cheque]
+        checkNumber:
+          type: string
+          nullable: true
+        checkDate:
+          type: string
+          format: date-time
+          nullable: true
+        paidInFull:
+          type: boolean
+        amountPaid:
+          type: number
+        termsAmountTaken:
+          type: number
 
     PaymentDetail:
       type: object
       properties:
-        companyNumber: { type: string, nullable: true }
-        vendorId: { type: string, nullable: true }
-        invoiceNumber: { type: string, nullable: true }
-        invoiceDate: { type: string, format: date-time, nullable: true }
-        invoiceAmount: { type: number, nullable: true }
-        voucherNumber: { type: string, nullable: true }
-        currency: { type: string, nullable: true }
-        voucherRefInvoiceNumber: { type: string, nullable: true }
-        apAccountNumber: { type: string, nullable: true }
-        cashAccountNumber: { type: string, nullable: true }
-        approved: { type: boolean }
-        poNumber: { type: string, nullable: true }
+        companyNumber:
+          type: string
+          nullable: true
+        vendorId:
+          type: string
+          nullable: true
+        invoiceNumber:
+          type: string
+          nullable: true
+        invoiceDate:
+          type: string
+          format: date-time
+          nullable: true
+        invoiceAmount:
+          type: number
+          nullable: true
+        voucherNumber:
+          type: string
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        voucherRefInvoiceNumber:
+          type: string
+          nullable: true
+        apAccountNumber:
+          type: string
+          nullable: true
+        cashAccountNumber:
+          type: string
+          nullable: true
+        approved:
+          type: boolean
+        poNumber:
+          type: string
+          nullable: true
         PaymentLine:
           type: array
           items:
@@ -526,8 +1522,235 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PaymentDetail'
-        page: { type: integer }
-        pageSize: { type: integer }
-        total: { type: integer }
-        totalPages: { type: integer }
-        lastPage: { type: boolean }
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        lastPage:
+          type: boolean
+
+    Receipt:
+      type: object
+      properties:
+        receipt_number:
+          type: integer
+        po_number:
+          type: integer
+        companyId:
+          type: string
+          nullable: true
+        location_id:
+          type: string
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        date_created:
+          type: string
+          format: date-time
+        date_last_modified:
+          type: string
+          format: date-time
+        approved:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceiptLine'
+
+    ReceiptLine:
+      type: object
+      properties:
+        po_line_number:
+          type: integer
+        item_id:
+          type: string
+        item_desc:
+          type: string
+        qty_received:
+          type: number
+        unit_size:
+          type: number
+        unit:
+          type: string
+        unit_cost:
+          type: number
+        unitprice:
+          type: string
+        total:
+          type: number
+        unitPricingUnit:
+          type: string
+        unitprice_size:
+          type: number
+        vouch_complete:
+          type: string
+
+    VoucherEnvelope:
+      type: object
+      properties:
+        header:
+          $ref: '#/components/schemas/VoucherHeader'
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/VoucherDetail'
+
+    VoucherHeader:
+      type: object
+      properties:
+        voucherNumber:
+          type: string
+          nullable: true
+        vendorId:
+          type: string
+          nullable: true
+        companyId:
+          type: string
+          nullable: true
+        branchId:
+          type: string
+          nullable: true
+        locationId:
+          type: string
+          nullable: true
+        poType:
+          type: string
+          nullable: true
+          enum: [PO, Non-PO]
+        poNumber:
+          type: string
+          nullable: true
+        invoiceNumber:
+          type: string
+          nullable: true
+        invoiceDate:
+          type: string
+          format: date-time
+          nullable: true
+        homeCurrencyAmount:
+          type: number
+          nullable: true
+        invoiceAmount:
+          type: number
+          nullable: true
+        currencyId:
+          type: string
+          nullable: true
+        exchangeRate:
+          type: number
+          nullable: true
+        period:
+          type: integer
+          nullable: true
+        yearForPeriod:
+          type: integer
+          nullable: true
+        disputed:
+          type: boolean
+        freightAmount:
+          type: number
+          nullable: true
+        termsAmountTaken:
+          type: number
+          nullable: true
+        amountPaid:
+          type: number
+          nullable: true
+        totalAmountPaid:
+          type: number
+          nullable: true
+        paidInFull:
+          type: boolean
+        approved:
+          type: boolean
+        canceled:
+          type: boolean
+        dateCreated:
+          type: string
+          format: date-time
+          nullable: true
+        dateLastModified:
+          type: string
+          format: date-time
+          nullable: true
+
+    VoucherDetail:
+      type: object
+      properties:
+        detailType:
+          type: string
+          nullable: true
+          enum: [LINE, CHARGE, VAT]
+        itemId:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        quantity:
+          type: number
+          nullable: true
+        unitPrice:
+          type: number
+          nullable: true
+        purchaseAmount:
+          type: number
+          nullable: true
+        disputed:
+          type: boolean
+        disputedAmount:
+          type: number
+          nullable: true
+        lineFreightAmount:
+          type: number
+          nullable: true
+        lineFreightAmountDisplay:
+          type: number
+          nullable: true
+
+    # ── System schemas ──────────────────────────────────────────────────
+
+    ExchangeRate:
+      type: object
+      properties:
+        from_currency:
+          type: string
+          enum: [CAD, USD, EUR]
+        to_currency:
+          type: string
+          enum: [CAD, USD, EUR]
+        exchange_rate:
+          type: number
+        reverse_exchange_rate:
+          type: number
+        exchange_date:
+          type: string
+          format: date-time
+
+    Period:
+      type: object
+      properties:
+        company_no:
+          type: string
+        period:
+          type: integer
+        year_for_period:
+          type: integer
+        period_closed:
+          type: string
+        date_last_modified:
+          type: string
+          format: date-time
+        beginning_date:
+          type: string
+          format: date-time
+        ending_date:
+          type: string
+          format: date-time
+        adjustment_period_flag:
+          type: string

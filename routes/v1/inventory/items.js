@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
 const { getPagingParams } = require('../../../utils/paging');
+const logger = require('../../../utils/logger');
+const asyncHandler = require('../../../utils/asyncHandler');
 
 // GET /v1/inventory/items (list)
-router.get('/', async (req, res) => {
-  try {
+router.get('/', asyncHandler(async (req, res) => {
     await sql.connect(config);
     const { page, limit, order, paging, offset } = getPagingParams(req);
 
@@ -53,14 +54,10 @@ router.get('/', async (req, res) => {
       page,
       totalPages: paging ? Math.ceil(totalCount / limit) : 1
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+}));
 
 // GET /v1/inventory/items/:item_id
-router.get('/:item_id', async (req, res) => {
-  try {
+router.get('/:item_id', asyncHandler(async (req, res) => {
     await sql.connect(config);
     const rawId = req.params.item_id || '';
     const itemId = rawId.trim().substring(0, 50); // sanitize input
@@ -79,10 +76,7 @@ router.get('/:item_id', async (req, res) => {
     }
 
     res.json(result.recordset[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+}));
 
 module.exports = router;
 

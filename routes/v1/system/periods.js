@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
+const logger = require('../../../utils/logger');
+const asyncHandler = require('../../../utils/asyncHandler');
 
-const getYearFromRequest = (req) => {
+const getYearsFromRequest = (req) => {
   if (!req.params.year) {
-    return new Date().getFullYear();
+    const currentYear = new Date().getFullYear();
+    return [currentYear, currentYear + 1];
   }
 
   const parsedYear = Number.parseInt(req.params.year, 10);
@@ -13,14 +16,13 @@ const getYearFromRequest = (req) => {
     return null;
   }
 
-  return parsedYear;
+  return [parsedYear];
 };
 
-router.get('/:year?', async (req, res) => {
-  try {
-    const year = getYearFromRequest(req);
+router.get('/:year?', asyncHandler(async (req, res) => {
+    const years = getYearsFromRequest(req);
 
-    if (year === null) {
+    if (years === null) {
       return res.status(400).json({ error: 'Invalid year parameter' });
     }
 
@@ -36,19 +38,17 @@ router.get('/:year?', async (req, res) => {
           beginning_date,
           ending_date,
           adjustment_period_flag
-      FROM p21_view_periods
-      WHERE year_for_period = @year
-      ORDER BY company_no, period;
+      FROM periods
+      WHERE year_for_period IN (@year1, @year2)
+      ORDER BY company_no, year_for_period, period;
     `;
 
     const request = new sql.Request();
-    request.input('year', sql.Int, year);
+    request.input('year1', sql.Int, years[0]);
+    request.input('year2', sql.Int, years.length > 1 ? years[1] : years[0]);
 
     const result = await request.query(query);
     res.json(result.recordset);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+}));
 
 module.exports = router;

@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
+const logger = require('../../../utils/logger');
+const asyncHandler = require('../../../utils/asyncHandler');
 // const { apiKeyAuth } = require('../../../middleware/apiKeyAuth');
 // router.use(apiKeyAuth('/v1/sales/order'));
 
@@ -75,7 +77,7 @@ const formatSupplierRecord = (row) => {
   };
 };
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const page = parsePositiveInt(req.query.page, DEFAULT_PAGE);
   const requestedLimit = req.query.limit ?? req.query.page_size ?? req.query.pageSize;
   let limit = parsePositiveInt(requestedLimit, DEFAULT_LIMIT);
@@ -96,8 +98,7 @@ router.get('/', async (req, res) => {
     }
   }
 
-  try {
-    await sql.connect(config);
+  await sql.connect(config);
 
     const filters = [];
     if (updatedSinceDate) {
@@ -194,10 +195,6 @@ router.get('/', async (req, res) => {
       totalPages,
       lastPage
     });
-  } catch (error) {
-    console.error('Error fetching suppliers:', error);
-    res.status(500).json({ error: 'Failed to load suppliers' });
-  }
-});
+}));
 
 module.exports = router;

@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
+const logger = require('../../../utils/logger');
+const asyncHandler = require('../../../utils/asyncHandler');
 // const { apiKeyAuth } = require('../../../middleware/apiKeyAuth');
 // router.use(apiKeyAuth('/v1/sales/order'));
 
@@ -111,12 +113,11 @@ const formatLine = (line, headerContext) => {
   const unitSize = safeNumber(line.unit_size);
   const unitQuantity = safeNumber(line.unit_quantity);
   const pricingUnitSize = safeNumber(line.pricing_unit_size);
-  const unitPrice = safeNumber(line.unit_price) ?? 0;
+  const unitPrice = safeNumber(line.unit_price_display) ?? 0;
   const amount = roundToDecimals(
     calculateAmount(quantityOrdered, unitSize, unitQuantity, pricingUnitSize, unitPrice)
   );
   const baseUnitPrice = safeNumber(line.base_ut_price);
-  const unitPriceDisplay = safeNumber(line.unit_price_display);
   const isCanceled = toBooleanFlag(line.cancel_flag);
   const isComplete = toBooleanFlag(line.complete);
   const isClosed = toBooleanFlag(line.closed_flag);
@@ -202,7 +203,7 @@ const buildHeaderResponse = (header, lineMap, commentMap) => {
       const unitSize = safeNumber(line.unit_size);
       const unitQuantity = safeNumber(line.unit_quantity);
       const pricingUnitSize = safeNumber(line.pricing_unit_size);
-      const unitPrice = safeNumber(line.unit_price);
+      const unitPrice = safeNumber(line.unit_price_display);
 
       return total + calculateAmount(
         quantity,
@@ -417,7 +418,8 @@ const fetchPurchaseOrders = async (filters, options = {}) => {
     FROM p21_view_po_line AS line WITH (NOLOCK)
     INNER JOIN po_hdr ON po_hdr.po_no = line.po_no AND po_hdr.company_no = line.company_no
     LEFT JOIN inv_loc ON inv_loc.inv_mast_uid = line.inv_mast_uid AND inv_loc.location_id = po_hdr.location_id
-    WHERE ${compositeWhere};
+    WHERE ${compositeWhere}
+      AND line.cancel_flag = 'N';
   `;
 
   const commentQuery = `
@@ -470,8 +472,7 @@ const fetchPurchaseOrders = async (filters, options = {}) => {
   };
 };
 
-router.get('/', async (req, res) => {
-  try {
+router.get('/', asyncHandler(async (req, res) => {
     const filters = {};
 
     const companyQuery = req.query.company || req.query.companyId;
@@ -521,14 +522,9 @@ router.get('/', async (req, res) => {
 
     const { purchaseOrders, footer } = await fetchPurchaseOrders(filters, options);
     res.json({ purchaseOrders, footer });
-  } catch (error) {
-    console.error('Failed to fetch purchase orders', error);
-    res.status(500).json({ error: 'Failed to fetch purchase orders' });
-  }
-});
+}));
 
-router.get('/:poNo', async (req, res) => {
-  try {
+router.get('/:poNo', asyncHandler(async (req, res) => {
     const filters = { poNo: String(req.params.poNo).trim() };
     const companyQuery = req.query.company || req.query.companyId;
     if (companyQuery) {
@@ -550,10 +546,6 @@ router.get('/:poNo', async (req, res) => {
     }
 
     return res.json(purchaseOrders[0]);
-  } catch (error) {
-    console.error('Failed to fetch purchase order', error);
-    return res.status(500).json({ error: 'Failed to fetch purchase order' });
-  }
-});
+}));
 
 module.exports = router;

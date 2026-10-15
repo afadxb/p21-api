@@ -1,0 +1,275 @@
+const express = require('express');
+const router = express.Router();
+const { sql, config } = require('../../../db');
+// const { apiKeyAuth } = require('../../../middleware/apiKeyAuth');
+// router.use(apiKeyAuth('/v1/ap/paymentdetail'));
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 500;
+const MAX_LIMIT = 2000;
+
+const mapCurrencyIdToCode = (currencyId) => {
+  switch (currencyId) {
+    case 1:
+      return 'CAD';
+    case 3:
+      return 'USD';
+    case 4:
+      return 'EUR';
+    case 6:
+      return 'CNY';
+    default:
+      return currencyId != null ? String(currencyId).trim() : null;
+  }
+};
+
+const parsePositiveInt = (value, defaultValue) => {
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed < 1) {
+    return defaultValue;
+  }
+  return parsed;
+};
+
+const normalizeDate = (value) => {
+  if (!value) {
+    return null;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const toIsoString = (value) => {
+  const date = normalizeDate(value);
+  return date ? date.toISOString() : null;
+};
+
+const formatPaymentDetailRow = (row) => ({
+  companyNumber: row.company_no ? String(row.company_no).trim() : null,
+  vendorId: row.vendor_id ? String(row.vendor_id).trim() : null,
+  invoiceNumber: row.invoice_no ? String(row.invoice_no).trim() : null,
+  invoiceDate: toIsoString(row.invoice_date),
+  invoiceAmount: row.invoice_amount != null ? Number(row.invoice_amount) : null,
+  voucherNumber: row.voucher_no ? String(row.voucher_no).trim() : null,
+  checkNumber: row.check_no ? String(row.check_no).trim() : null,
+  checkDate: toIsoString(row.check_date),
+  method: row.method ? String(row.method).trim() : null,
+  currency: row.currency ? String(row.currency).trim() : mapCurrencyIdToCode(row.currency_id),
+  voucherRefInvoiceNumber: row.voucher_ref_inv_no ? String(row.voucher_ref_inv_no).trim() : null,
+  apAccountNumber: row.ap_account_no ? String(row.ap_account_no).trim() : null,
+  cashAccountNumber: row.cash_account_no ? String(row.cash_account_no).trim() : null,
+  approved: row.approved === 'Y',
+  poNumber: row.po_no ? String(row.po_no).trim() : null,
+  paidInFull: row.paid_in_full === 'Y',
+  amountPaid: row.amount_paid != null ? Number(row.amount_paid) : 0,
+  termsAmountTaken: row.terms_amount_taken != null ? Number(row.terms_amount_taken) : 0,
+  //amountPaidDisplay: row.amount_paid_display != null ? Number(row.amount_paid_display) : 0
+});
+
+const groupPaymentDetails = (rows) => {
+  const groupedByVoucher = new Map();
+
+  rows.forEach((row) => {
+    const formatted = formatPaymentDetailRow(row);
+    const voucherKey = formatted.voucherNumber ?? `__unknown_${groupedByVoucher.size}`;
+
+    if (!groupedByVoucher.has(voucherKey)) {
+      groupedByVoucher.set(voucherKey, {
+        companyNumber: formatted.companyNumber,
+        vendorId: formatted.vendorId,
+        invoiceNumber: formatted.invoiceNumber,
+        invoiceDate: formatted.invoiceDate,
+        invoiceAmount: formatted.invoiceAmount,
+        voucherNumber: formatted.voucherNumber,
+        currency: formatted.currency,
+        voucherRefInvoiceNumber: formatted.voucherRefInvoiceNumber,
+        apAccountNumber: formatted.apAccountNumber,
+        cashAccountNumber: formatted.cashAccountNumber,
+        approved: formatted.approved,
+        poNumber: formatted.poNumber,
+        PaymentLine: []
+      });
+    }
+
+    const hasPaymentDetail =
+      formatted.amountPaid != null ||
+      formatted.termsAmountTaken != null ||
+      row.paid_in_full != null ||
+      formatted.method != null ||
+      formatted.checkNumber != null ||
+      formatted.checkDate != null;
+
+    if (hasPaymentDetail) {
+      groupedByVoucher.get(voucherKey).PaymentLine.push({
+        method: formatted.method,
+        checkNumber: formatted.checkNumber,
+        checkDate: formatted.checkDate,
+        paidInFull: formatted.paidInFull,
+        amountPaid: formatted.amountPaid,
+        termsAmountTaken: formatted.termsAmountTaken
+      });
+    }
+  });
+
+  return Array.from(groupedByVoucher.values());
+};
+
+router.get('/', async (req, res) => {
+  const page = parsePositiveInt(req.query.page, DEFAULT_PAGE);
+  const requestedLimit = req.query.limit ?? req.query.page_size ?? req.query.pageSize;
+  let limit = parsePositiveInt(requestedLimit, DEFAULT_LIMIT);
+  if (limit > MAX_LIMIT) {
+    limit = MAX_LIMIT;
+  }
+  const offset = (page - 1) * limit;
+
+  const filters = [];
+  const parameters = [];
+
+  filters.push('payments.check_date IS NOT NULL');
+//  filters.push('apinv_hdr.check_date IS NOT NULL');
+
+  const updatedSinceRaw = req.query.updated_since || req.query.updatedSince;
+  if (updatedSinceRaw) {
+    const updatedSince = normalizeDate(updatedSinceRaw);
+    if (!updatedSince) {
+      return res.status(400).json({ error: 'Invalid updatedSince parameter. Expecting ISO 8601 date.' });
+    }
+    filters.push('payments.date_last_modified >= @updatedSince');
+    parameters.push({ name: 'updatedSince', type: sql.DateTime2, value: updatedSince });
+  }
+
+  const companyParam = typeof req.query.company === 'string' ? req.query.company.trim() : null;
+  if (companyParam) {
+    filters.push('apinv_hdr.company_no = @company');
+    parameters.push({ name: 'company', type: sql.VarChar, value: companyParam });
+  }
+
+  const vendorParam = typeof req.query.vendor === 'string' ? req.query.vendor.trim() : null;
+  if (vendorParam) {
+    filters.push('apinv_hdr.vendor_id = @vendor');
+    parameters.push({ name: 'vendor', type: sql.VarChar, value: vendorParam });
+  }
+
+  const voucherParam = typeof req.query.voucherNo === 'string' ? req.query.voucherNo.trim() : null;
+  if (voucherParam) {
+    filters.push('apinv_hdr.voucher_no = @voucherNo');
+    parameters.push({ name: 'voucherNo', type: sql.VarChar, value: voucherParam });
+  }
+
+  const invoiceParam = typeof req.query.invoiceNo === 'string' ? req.query.invoiceNo.trim() : null;
+  if (invoiceParam) {
+    filters.push('apinv_hdr.invoice_no = @invoiceNo');
+    parameters.push({ name: 'invoiceNo', type: sql.VarChar, value: invoiceParam });
+  }
+
+  const poParam = typeof req.query.poNo === 'string' ? req.query.poNo.trim() : null;
+  if (poParam) {
+    filters.push('apinv_hdr.po_no = @poNo');
+    parameters.push({ name: 'poNo', type: sql.VarChar, value: poParam });
+  }
+
+  const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+
+  try {
+    await sql.connect(config);
+
+    const dataRequest = new sql.Request();
+    dataRequest.input('offset', sql.Int, offset);
+    dataRequest.input('limit', sql.Int, limit);
+    parameters.forEach((param) => {
+      dataRequest.input(param.name, param.type, param.value);
+    });
+
+    const query = `
+      WITH filtered_rows AS (
+        SELECT
+          apinv_hdr.company_no,
+          apinv_hdr.vendor_id,
+          apinv_hdr.invoice_no,
+          apinv_hdr.invoice_date,
+          apinv_hdr.invoice_amount,
+          apinv_hdr.voucher_no,
+          apinv_hdr.currency_id,
+          apinv_hdr.voucher_ref_inv_no,
+          apinv_hdr.ap_account_no,
+          apinv_hdr.cash_account_no,
+          apinv_hdr.approved,
+          apinv_hdr.po_no,
+          apinv_hdr.branch_id,
+          apinv_hdr.paid_in_full,
+          CASE apinv_hdr.currency_id
+            WHEN 1 THEN 'CAD'
+            WHEN 3 THEN 'USD'
+            WHEN 4 THEN 'EUR'
+            WHEN 6 THEN 'CNY'
+            ELSE NULL
+          END AS currency,
+          CASE payments.transmission_method
+            WHEN 2694 THEN 'ACH/EFT'
+            ELSE 'Cheque'
+          END AS method,
+          payments.check_date,
+          payments.void,
+          payments.check_no,
+          payments.check_amount,
+          payments.cleared_bank,
+          payments.date_created,
+          payments.date_last_modified,
+          payment_detail.amount_paid,
+          payment_detail.terms_amount_taken
+        FROM apinv_hdr
+        INNER JOIN payment_detail ON payment_detail.voucher_no = apinv_hdr.voucher_no
+        INNER JOIN payments ON
+          payments.check_no = payment_detail.check_no AND
+          payments.bank_no = payment_detail.bank_no AND
+          payments.company_no = payment_detail.company_no
+        ${whereClause}
+      ),
+      paged_rows AS (
+        SELECT *, ROW_NUMBER() OVER (ORDER BY invoice_date DESC, voucher_no) AS rn
+        FROM filtered_rows
+      )
+      SELECT *
+      FROM paged_rows
+      WHERE rn BETWEEN @offset + 1 AND @offset + @limit
+      ORDER BY invoice_date DESC, voucher_no, rn;
+    `;
+
+    const dataResult = await dataRequest.query(query);
+
+    const countRequest = new sql.Request();
+    parameters.forEach((param) => {
+      countRequest.input(param.name, param.type, param.value);
+    });
+
+    const countQuery = `
+      WITH filtered_rows AS (
+        SELECT apinv_hdr.voucher_no
+        FROM apinv_hdr
+        INNER JOIN payment_detail ON payment_detail.voucher_no = apinv_hdr.voucher_no
+        INNER JOIN payments ON
+          payments.check_no = payment_detail.check_no AND
+          payments.bank_no = payment_detail.bank_no AND
+          payments.company_no = payment_detail.company_no
+        ${whereClause}
+      )
+      SELECT COUNT(*) AS total FROM filtered_rows;
+    `;
+
+    const countResult = await countRequest.query(countQuery);
+    const total = countResult.recordset[0] ? Number(countResult.recordset[0].total) : 0;
+
+    const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
+    const lastPage = totalPages === 0 ? page === 1 : page >= totalPages;
+
+    const paymentDetails = groupPaymentDetails(dataResult.recordset);
+
+    return res.json({ paymentDetails, page, pageSize: limit, total, totalPages, lastPage });
+  } catch (error) {
+    console.error('Failed to fetch payment details', error);
+    return res.status(500).json({ error: 'Failed to fetch payment details' });
+  }
+});
+
+module.exports = router;

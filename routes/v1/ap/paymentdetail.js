@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
+const logger = require('../../../utils/logger');
+const asyncHandler = require('../../../utils/asyncHandler');
 // const { apiKeyAuth } = require('../../../middleware/apiKeyAuth');
 // router.use(apiKeyAuth('/v1/ap/paymentdetail'));
 
@@ -114,7 +116,7 @@ const groupPaymentDetails = (rows) => {
   return Array.from(groupedByVoucher.values());
 };
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const page = parsePositiveInt(req.query.page, DEFAULT_PAGE);
   const requestedLimit = req.query.limit ?? req.query.page_size ?? req.query.pageSize;
   let limit = parsePositiveInt(requestedLimit, DEFAULT_LIMIT);
@@ -181,8 +183,7 @@ router.get('/', async (req, res) => {
 
   const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
-  try {
-    await sql.connect(config);
+  await sql.connect(config);
 
     const dataRequest = new sql.Request();
     dataRequest.input('offset', sql.Int, offset);
@@ -276,10 +277,6 @@ router.get('/', async (req, res) => {
     const paymentDetails = groupPaymentDetails(dataResult.recordset);
 
     return res.json({ paymentDetails, page, pageSize: limit, total, totalPages, lastPage });
-  } catch (error) {
-    console.error('Failed to fetch payment details', error);
-    return res.status(500).json({ error: 'Failed to fetch payment details' });
-  }
-});
+}));
 
 module.exports = router;

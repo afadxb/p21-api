@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
+const logger = require('../../../utils/logger');
+const asyncHandler = require('../../../utils/asyncHandler');
 // const { apiKeyAuth } = require('../../../middleware/apiKeyAuth');
 // router.use(apiKeyAuth('/v1/sales/order'));
 
@@ -38,7 +40,7 @@ const buildNetLine = (row) => ({
   numberOfMonths: row.terms_months != null ? Number(row.terms_months) : 0
 });
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const page = parsePositiveInt(req.query.page, DEFAULT_PAGE);
   const requestedPageSize = req.query.limit ?? req.query.page_size ?? req.query.pageSize;
   let pageSize = parsePositiveInt(requestedPageSize, DEFAULT_PAGE_SIZE);
@@ -61,8 +63,7 @@ router.get('/', async (req, res) => {
     }
   }
 
-  try {
-    await sql.connect(config);
+  await sql.connect(config);
 
     const filters = [];
     if (updatedSinceDate) {
@@ -226,10 +227,6 @@ router.get('/', async (req, res) => {
       totalPages,
       lastPage
     });
-  } catch (error) {
-    console.error('Error fetching payment terms:', error);
-    res.status(500).json({ error: 'Failed to load payment terms' });
-  }
-});
+}));
 
 module.exports = router;

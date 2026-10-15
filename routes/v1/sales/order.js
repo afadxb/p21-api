@@ -1,6 +1,8 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
+const logger = require('../../../utils/logger');
+const asyncHandler = require('../../../utils/asyncHandler');
 // const { apiKeyAuth } = require('../../../middleware/apiKeyAuth');
 // router.use(apiKeyAuth('/v1/sales/order'));
 
@@ -89,7 +91,8 @@ const lineFields = [
   { column: 'Contract_Bin_ID', key: 'contractBinId', type: sql.NVarChar(8) },
   { column: 'Contract_No', key: 'contractNo', type: sql.NVarChar(8) },
   { column: 'Allocation_Qty', key: 'allocationQty', type: sql.Decimal(18, 2), numeric: true },
-  { column: 'Promise_Date', key: 'promiseDate', type: sql.NVarChar(8) }
+  { column: 'Promise_Date', key: 'promiseDate', type: sql.NVarChar(8) },
+  { column: 'Note', key: 'note', type: sql.NVarChar(512) }
 ];
 
 const headerColumnList = headerFields.map((f) => f.column).join(', ');
@@ -102,8 +105,9 @@ const isEmpty = (value) => value === undefined || value === null || value === ''
 function normaliseLinePayload(line = {}) {
   const normalised = { ...line };
 
-  // Ignore any inbound contract bin values from either payload shape.
-  normalised.contractBinId = null;
+  if (isEmpty(normalised.contractBinId) && !isEmpty(normalised.Contract_Bin_ID)) {
+    normalised.contractBinId = normalised.Contract_Bin_ID;
+  }
   delete normalised.Contract_Bin_ID;
 
   return normalised;
@@ -132,11 +136,10 @@ function normaliseValue(value, field) {
     return Number.isNaN(numeric) ? null : numeric;
   }
 
-  return value;
+  return String(value);
 }
 
-router.post('/', async (req, res) => {
-  try {
+router.post('/', asyncHandler(async (req, res) => {
     const { orders } = req.body || {};
 
     let ordersPayload;
@@ -202,7 +205,7 @@ router.post('/', async (req, res) => {
     const pool = await sql.connect(config);
     const transaction = new sql.Transaction(pool);
 
-    try {
+    try { // transaction scope
       await transaction.begin();
 
       const lastImportSetNoRequest = new sql.Request(transaction);
@@ -282,20 +285,66 @@ router.post('/', async (req, res) => {
       try {
         await transaction.rollback();
       } catch (rollbackErr) {
-        console.error('Failed to rollback transaction', rollbackErr);
+        logger.error({ err: rollbackErr }, 'Failed to rollback transaction');
       }
       throw err;
     }
-  } catch (err) {
-    console.error('Failed to store sales order(s)', err);
-    const status = err.status || 500;
-    res.status(status).json({ error: err.message || 'Internal Server Error' });
-  }
-});
+}));
 
-router.get('/:order_id', async (req, res) => {
+
+// Temporary debug endpoint to validate DB connection and order visibility
+router.get('/_debug', asyncHandler(async (req, res) => {
+  if (process.env.ENABLE_DEBUG_ROUTES !== 'true') {
+    return res.status(403).json({ error: 'Debug routes disabled' });
+  }
+    await sql.connect(config);
+    const infoResult = await new sql.Request().query(`
+      SELECT DB_NAME() AS [db], @@SERVERNAME AS [server], SUSER_SNAME() AS [login], SYSTEM_USER AS [system_user]
+    `);
+    const orderId = req.query.order || req.query.order_id || req.query.id;
+    let headerCount = null;
+    let headerSample = null;
+    let lineCount = null;
+    if (orderId) {
+      const countReq = new sql.Request();
+      countReq.input('orderId', sql.VarChar, orderId);
+      const countResult = await countReq.query(`
+        SELECT COUNT(*) AS cnt
+        FROM oe_hdr
+        WHERE order_no = TRY_CAST(@orderId AS INT)
+           OR job_name = @orderId
+      `);
+      headerCount = countResult.recordset?.[0]?.cnt ?? 0;
+      const sampleReq = new sql.Request();
+      sampleReq.input('orderId', sql.VarChar, orderId);
+      const sampleResult = await sampleReq.query(`
+        SELECT TOP 1 order_no, job_name, delete_flag, cancel_flag, approved, completed, company_id
+        FROM oe_hdr
+        WHERE order_no = TRY_CAST(@orderId AS INT)
+           OR job_name = @orderId
+        ORDER BY order_no DESC
+      `);
+      headerSample = sampleResult.recordset?.[0] || null;
+      const orderNo = headerSample?.order_no;
+      if (orderNo) {
+        const linesReq = new sql.Request();
+        linesReq.input('orderNo', sql.Int, orderNo);
+        const linesResult = await linesReq.query(`
+          SELECT COUNT(*) AS cnt
+          FROM oe_line
+          WHERE order_no = @orderNo
+        `);
+        lineCount = linesResult.recordset?.[0]?.cnt ?? 0;
+      }
+    }
+    res.json({
+      connection: infoResult.recordset?.[0] || {},
+      input: { order: orderId || null },
+      checks: { headerCount, headerSample, lineCount }
+    });
+}));
+router.get('/:order_id', asyncHandler(async (req, res) => {
   const rawId = req.params.order_id;
-  try {
     await sql.connect(config);
 
     const headerRequest = new sql.Request();
@@ -333,10 +382,11 @@ router.get('/:order_id', async (req, res) => {
     lineRequest.input('orderId', sql.Int, orderNumberForLines);
     const lineResult = await lineRequest.query(`
       SELECT oe_line.order_no, oe_line.qty_ordered, oe_line.delete_flag, oe_line.line_no,
-             inv_mast.item_id, oe_line.customer_part_number, 
-             oe_line.complete, oe_line.disposition, oe_line.qty_allocated, oe_line.qty_on_pick_tickets, 
+             inv_mast.item_id, oe_line.customer_part_number,
+             oe_line.complete, oe_line.disposition, oe_line.qty_allocated, oe_line.qty_on_pick_tickets,
              oe_line.qty_invoiced, oe_line.required_date,
-             oe_line.unit_size, oe_line.unit_quantity, 
+             oe_line.unit_size, oe_line.unit_quantity,
+             oe_line.unit_price, oe_line.pricing_unit, oe_line.pricing_unit_size,
              oe_line.cancel_flag, oe_line.qty_canceled,
              CASE
                WHEN oe_line.qty_invoiced >= oe_line.qty_ordered THEN 'Fulfilled'
@@ -361,10 +411,10 @@ router.get('/:order_id', async (req, res) => {
       header,
       lines
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
+}));
 
 module.exports = router;
+
+
+
+

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlcmd -S 192.168.1.13,1433 -U reports -P reports -d commercecenterPlay -h -1 -W -s \"|\" -Q \"SELECT Import_Set_No, Exported FROM TMP_OE_Header WHERE Import_Set_No='624';\")",
+      "Bash(sqlcmd -S 192.168.1.13,1433 -U reports -P reports -d commercecenterPlay -h -1 -W -s \"|\" -Q \"SELECT TOP 5 Import_Set_No, Exported FROM TMP_OE_Header ORDER BY CAST\\(Import_Set_No AS INT\\) DESC;\")",
+      "Bash(sqlcmd -S 192.168.1.13,1433 -U reports -P reports -d commercecenter -h -1 -W -s \"|\" -Q \"SELECT Import_Set_No, Exported FROM TMP_OE_Header WHERE Import_Set_No='624';\")"
+    ]
+  }
+}

@@ -2,12 +2,14 @@ const fs = require('fs/promises');
 const path = require('path');
 const os = require('os');
 const { sql, config } = require('../db');
+const logger = require('../utils/logger');
 
 const EXPORT_SUBDIR = process.env.TMP_OE_EXPORT_DIR || 'exports';
-const EXPORT_INTERVAL_MINUTES = parseInt(process.env.TMP_OE_EXPORT_INTERVAL_MINUTES || '30', 10);
+const EXPORT_INTERVAL_MINUTES = parseInt(process.env.TMP_OE_EXPORT_INTERVAL_MINUTES || '5', 10);
 const EXPORT_INTERVAL_MS = Number.isFinite(EXPORT_INTERVAL_MINUTES)
   ? Math.max(EXPORT_INTERVAL_MINUTES, 1) * 60 * 1000
-  : 30 * 60 * 1000;
+  : 5 * 60 * 1000;
+const EXPORT_RETENTION_DAYS = parseInt(process.env.TMP_OE_EXPORT_RETENTION_DAYS || '30', 10);
 
 const EXPORTED_FLAG_VALUE = 'Y';
 
@@ -97,6 +99,13 @@ const lineLayout = [
   { key: 'Contract_No' },
   { key: 'Allocation_Qty', formatter: formatQuantity },
   { key: 'Promise_Date', formatter: formatDate }
+];
+
+const noteLayout = [
+  { key: 'Import_Set_Number', zeroPadLength: 4 },
+  { key: 'Line_No' },
+  { key: 'Note_Type' },
+  { key: 'Note' },
 ];
 
 function normaliseYear(yearPart) {
@@ -238,6 +247,19 @@ async function fetchLineRecords(pool, importSet) {
   return result.recordset;
 }
 
+async function fetchNoteRecords(pool, importSet) {
+  const request = pool.request();
+  request.input('importSet', sql.NVarChar(8), importSet);
+  const result = await request.query(`
+    SELECT Import_Set_Number, Line_No, 'NOTE' AS Note_Type, Note
+    FROM TMP_OE_Line
+    WHERE Import_Set_Number = @importSet
+      AND Note IS NOT NULL AND LTRIM(RTRIM(Note)) <> ''
+    ORDER BY TRY_CAST(Line_No AS INT);
+  `);
+  return result.recordset;
+}
+
 async function markHeaderExported(pool, importSet) {
   const request = pool.request();
   request.input('importSet', sql.NVarChar(8), importSet);
@@ -248,7 +270,7 @@ async function markHeaderExported(pool, importSet) {
   `);
 }
 
-async function writeFiles(importSet, headerRecord, lineRecords) {
+async function writeFiles(importSet, headerRecord, lineRecords, noteRecords) {
   if (!headerRecord) {
     throw new Error(`Missing TMP_OE_Header record for import set ${importSet}`);
   }
@@ -265,7 +287,16 @@ async function writeFiles(importSet, headerRecord, lineRecords) {
   await fs.writeFile(headerFile, headerContent, 'utf8');
   await fs.writeFile(lineFile, lineContent, 'utf8');
 
-  return { headerFile, lineFile };
+  const result = { headerFile, lineFile };
+
+  if (noteRecords && noteRecords.length > 0) {
+    const noteContent = noteRecords.map((record) => formatRecord(record, noteLayout)).join(os.EOL) + os.EOL;
+    const noteFile = path.join(baseDir, `SONL${importSet}.txt`);
+    await fs.writeFile(noteFile, noteContent, 'utf8');
+    result.noteFile = noteFile;
+  }
+
+  return result;
 }
 
 async function exportImportSet(pool, importSet) {
@@ -273,18 +304,19 @@ async function exportImportSet(pool, importSet) {
   const lineRecords = await fetchLineRecords(pool, importSet);
 
   if (!headerRecord) {
-    console.warn(`No header found for import set ${importSet}; skipping export.`);
+    logger.warn({ importSet }, 'No header found for import set; skipping export');
     return;
   }
 
   if (!lineRecords || lineRecords.length === 0) {
-    console.warn(`No lines found for import set ${importSet}; skipping export.`);
+    logger.warn({ importSet }, 'No lines found for import set; skipping export');
     return;
   }
 
-  const files = await writeFiles(importSet, headerRecord, lineRecords);
+  const noteRecords = await fetchNoteRecords(pool, importSet);
+  const files = await writeFiles(importSet, headerRecord, lineRecords, noteRecords);
   await markHeaderExported(pool, importSet);
-  console.log(`Exported TMP_OE records for import set ${importSet} to ${files.headerFile} and ${files.lineFile}`);
+  logger.info({ importSet, headerFile: files.headerFile, lineFile: files.lineFile, noteFile: files.noteFile || null }, 'Exported TMP_OE records');
 }
 
 async function runExportCycle() {
@@ -297,14 +329,42 @@ async function runExportCycle() {
       try {
         await exportImportSet(pool, importSet);
       } catch (err) {
-        console.error(`Failed to export import set ${importSet}:`, err);
+        logger.error({ err, importSet }, 'Failed to export import set');
       }
     }
   } catch (err) {
-    console.error('TMP_OE export job failed to run:', err);
+    logger.error({ err }, 'TMP_OE export job failed to run');
   } finally {
     if (pool) {
       pool.close();
+    }
+  }
+}
+
+async function cleanupOldExports() {
+  const baseDir = path.join(__dirname, '..', EXPORT_SUBDIR);
+  const retentionMs = EXPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const cutoff = Date.now() - retentionMs;
+
+  try {
+    const files = await fs.readdir(baseDir);
+    const exportFiles = files.filter((f) => /^SO(?:H|L|NL)\d+\.txt$/i.test(f));
+
+    for (const file of exportFiles) {
+      const filePath = path.join(baseDir, file);
+      try {
+        const stat = await fs.stat(filePath);
+        if (stat.mtimeMs < cutoff) {
+          await fs.unlink(filePath);
+          logger.info({ file }, 'Cleaned up old export file');
+        }
+      } catch (err) {
+        logger.warn({ err, file }, 'Failed to check/remove export file');
+      }
+    }
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      logger.warn({ err }, 'Failed to read exports directory for cleanup');
     }
   }
 }
@@ -318,9 +378,13 @@ async function startExportJob() {
   }
   running = true;
 
+  await cleanupOldExports();
   await runExportCycle();
 
-  timer = setInterval(runExportCycle, EXPORT_INTERVAL_MS);
+  timer = setInterval(async () => {
+    await cleanupOldExports();
+    await runExportCycle();
+  }, EXPORT_INTERVAL_MS);
   timer.unref?.();
 }
 
@@ -330,6 +394,7 @@ function stopExportJob() {
     timer = null;
   }
   running = false;
+  logger.info('Export job stopped');
 }
 
 module.exports = {

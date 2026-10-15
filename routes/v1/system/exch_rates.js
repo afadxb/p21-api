@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { sql, config } = require('../../../db');
+const logger = require('../../../utils/logger');
+const asyncHandler = require('../../../utils/asyncHandler');
 
-router.get('/', async (req, res) => {
-  try {
+router.get('/', asyncHandler(async (req, res) => {
     await sql.connect(config);
 
     const query = `
@@ -26,9 +27,6 @@ router.get('/', async (req, res) => {
 
     const result = await sql.query(query);
     res.json(result.recordset);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+}));
 
 module.exports = router;

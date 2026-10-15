@@ -3,16 +3,14 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
+const logger = require('./utils/logger');
+const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 app.use(express.json());
 
-const swaggerDocument = YAML.load(path.join(__dirname, 'openapi.yaml'));
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
 // Routes
 app.use('/v1/inventory/items', require('./routes/v1/inventory/items'));
-// app.use('/pricing', require('./routes/pricing'));
 app.use('/v1/ap/suppliers', require('./routes/v1/ap/suppliers'));
 app.use('/v1/ap/paymentterms', require('./routes/v1/ap/paymentterms'));
 app.use('/v1/ap/purchaseorders', require('./routes/v1/ap/purchaseorders'));
@@ -31,14 +29,18 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Swagger docs — mounted after API routes so the '/' catch-all doesn't shadow them
+const swaggerDocument = YAML.load(path.join(__dirname, 'openapi.yaml'));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use('/', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
 // Background jobs
-const { startExportJob } = require('./jobs/exportTmpOrders');
+const { startExportJob, stopExportJob } = require('./jobs/exportTmpOrders');
 startExportJob().catch((err) => {
-  console.error('Failed to start TMP_OE export job', err);
+  logger.error({ err }, 'Failed to start TMP_OE export job');
 });
 
-
-// DEBUG fallback route (handles unmatched routes safely)
+// 404 handler
 app.all('*', (req, res) => {
   res.status(404).json({
     error: 'Route not found',
@@ -47,6 +49,27 @@ app.all('*', (req, res) => {
   });
 });
 
+// Central error handler (must be registered after all routes)
+app.use(errorHandler);
+
 // Allow the port to be configured via the environment for flexibility
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`P21 API running on port ${PORT}`));
+const server = app.listen(PORT, () => logger.info({ port: PORT }, 'P21 API running'));
+
+// Graceful shutdown
+function shutdown(signal) {
+  logger.info({ signal }, 'Shutdown signal received, closing gracefully');
+  stopExportJob();
+  server.close(() => {
+    logger.info('HTTP server closed');
+    process.exit(0);
+  });
+  // Force exit after 10s if connections don't close
+  setTimeout(() => {
+    logger.warn('Forcing shutdown after timeout');
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

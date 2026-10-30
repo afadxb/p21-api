@@ -1,0 +1,61 @@
+-- Staging tables for POST /v1/ap/purchaseorder.
+-- Column widths follow docs/PurchaseOrderHeader.xlsx and docs/PurchaseOrderLine.xlsx.
+-- jobs/exportTmpPurchaseOrders.js exports rows where Exported <> 'Y' to POH/POL files.
+
+CREATE TABLE TMP_PO_Header (
+  Import_Set_No NVARCHAR(8) NOT NULL,
+  Company_ID NVARCHAR(8) NOT NULL,
+  Location_ID DECIMAL(19, 0) NOT NULL,
+  Vendor_ID DECIMAL(19, 0) NOT NULL,
+  Supplier_ID DECIMAL(19, 0) NOT NULL,
+  Division_ID DECIMAL(19, 0) NULL,
+  Buyer_ID DECIMAL(19, 0) NOT NULL,
+  Purchase_Group_ID NVARCHAR(8) NULL,
+  Purchase_Order_Type NVARCHAR(1) NOT NULL,
+  Purchase_Order_Date NVARCHAR(10) NULL,
+  Required_Date NVARCHAR(10) NULL,
+  Approved NVARCHAR(1) NULL,
+  Terms NVARCHAR(20) NULL,
+  Carrier_ID NVARCHAR(8) NULL,
+  Shipping_Instructions NVARCHAR(100) NULL,
+  Receipt_Date NVARCHAR(10) NULL,
+  Class_1_ID NVARCHAR(8) NULL,
+  Class_2_ID NVARCHAR(8) NULL,
+  Class_3_ID NVARCHAR(8) NULL,
+  Class_4_ID NVARCHAR(8) NULL,
+  Class_5_ID NVARCHAR(8) NULL,
+  External_PO_No NVARCHAR(40) NULL,
+  Printed NVARCHAR(1) NULL,
+  Contact_ID NVARCHAR(8) NULL,
+  Contact_Name NVARCHAR(40) NULL,
+  Historical_Complete NVARCHAR(1) NULL,
+  EDI NVARCHAR(1) NULL,
+  Delivery_Terms NVARCHAR(20) NULL,
+  Special_Terms NVARCHAR(20) NULL,
+  Handling_Code_Type NVARCHAR(20) NULL,
+  Trans_Handling_Unit NVARCHAR(20) NULL,
+  Handling_Code_Time NVARCHAR(20) NULL,
+  Brand_Name NVARCHAR(20) NULL,
+  Carrier_Ship_Method NVARCHAR(20) NULL,
+  Carrier_Priority NVARCHAR(20) NULL,
+  Packing_Basis NVARCHAR(16) NOT NULL,
+  Exported NVARCHAR(1) NULL,
+  Date_Created DATETIME NOT NULL DEFAULT GETDATE(),
+  CONSTRAINT PK_TMP_PO_Header PRIMARY KEY (Import_Set_No)
+);
+
+CREATE TABLE TMP_PO_Line (
+  Import_Set_No NVARCHAR(8) NOT NULL,
+  Line_Number DECIMAL(19, 0) NOT NULL,
+  Item_ID NVARCHAR(40) NOT NULL,
+  Unit_of_Measure NVARCHAR(8) NOT NULL,
+  Unit_Quantity DECIMAL(19, 4) NOT NULL,
+  Pricing_Unit NVARCHAR(8) NULL,
+  Unit_Price_Display DECIMAL(19, 6) NULL,
+  Required_Date NVARCHAR(10) NULL,
+  Date_Due NVARCHAR(10) NULL,
+  Extended_Description NVARCHAR(255) NULL,
+  Supplier_Ship_Date NVARCHAR(10) NULL,
+  Revision_Level NVARCHAR(20) NULL,
+  CONSTRAINT PK_TMP_PO_Line PRIMARY KEY (Import_Set_No, Line_Number)
+);

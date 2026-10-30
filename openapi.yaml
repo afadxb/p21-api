@@ -1,12 +1,25 @@
 openapi: 3.0.3
 info:
   title: P21 API
-  version: 1.0.0
-  description: REST API interface to Prophet 21 ERP (SQL Server) for SRX integration.
+  version: 1.1.0
+  description: >
+    REST API interface to Prophet 21 ERP (SQL Server) for sales order, purchase
+    order and accounts payable integrations.
+
+
+    Sales (`/v1/sales`) and Accounts Payable (`/v1/ap`) endpoints require an API
+    key, sent as the `apikey` header or `apikey` query parameter. Use the
+    Authorize button to set it for Try it out.
 
 servers:
+  - url: https://api.accuratefasteners.com
+    description: Production
   - url: http://localhost:3000
     description: Local development
+
+security:
+  - ApiKeyHeader: []
+  - ApiKeyQuery: []
 
 tags:
   - name: Health
@@ -19,6 +32,7 @@ paths:
   /health:
     get:
       tags: [Health]
+      security: []
       summary: Health check
       responses:
         '200':
@@ -209,20 +223,31 @@ paths:
   /v1/inventory/items:
     get:
       tags: [Inventory]
+      security: []
       summary: List inventory items
       parameters:
+        - in: query
+          name: paging
+          schema:
+            type: string
+            enum: ['true', 'false']
+            default: 'false'
+          description: >
+            When "true", returns the requested page and the full totalCount.
+            When "false", returns the first `limit` items and `page` is ignored.
         - in: query
           name: page
           schema:
             type: integer
             minimum: 1
             default: 1
+          description: Page number. Only applies when paging=true.
         - in: query
           name: limit
           schema:
             type: integer
             minimum: 1
-            default: 500
+            default: 100
         - in: query
           name: inactive
           schema:
@@ -263,6 +288,7 @@ paths:
   /v1/inventory/items/{item_id}:
     get:
       tags: [Inventory]
+      security: []
       summary: Get a single inventory item
       parameters:
         - in: path
@@ -515,6 +541,83 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/ap/purchaseorder:
+    post:
+      tags: [Accounts Payable]
+      summary: Create one or more purchase orders
+      description: >
+        Accepts a batch of purchase orders or a single purchase order. Each
+        purchase order must include a header and at least one line. Orders are
+        saved to the TMP_PO_Header/TMP_PO_Line staging tables and exported to
+        tab-delimited POH/POL files for the P21 purchase order import.
+        Item IDs and single-character flags are upper-cased. Line numbers are
+        assigned in payload order.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/PurchaseOrderBatchRequest'
+                - $ref: '#/components/schemas/PurchaseOrderSingleRequest'
+            examples:
+              batch:
+                summary: Batch of purchase orders
+                value:
+                  purchaseOrders:
+                    - header:
+                        companyId: "01"
+                        locationId: 100
+                        vendorId: 1001
+                        supplierId: 1001
+                        buyerId: 2001
+                        purchaseOrderType: "S"
+                        packingBasis: "Partial"
+                        requiredDate: "2026-11-15"
+                        externalPoNo: "EXT-1001"
+                      lines:
+                        - itemId: "WIDGET-A"
+                          unitOfMeasure: "EA"
+                          unitQuantity: 100
+                          unitPriceDisplay: 0.0425
+              single:
+                summary: Single purchase order
+                value:
+                  header:
+                    companyId: "01"
+                    locationId: 100
+                    vendorId: 1001
+                    supplierId: 1001
+                    buyerId: 2001
+                    packingBasis: "Partial"
+                  lines:
+                    - itemId: "WIDGET-A"
+                      unitOfMeasure: "EA"
+                      unitQuantity: 100
+      responses:
+        '201':
+          description: Purchase orders accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Purchase orders Accepted
+                  purchaseOrders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PurchaseOrderCreatedResponse'
+        '400':
+          description: Validation error (missing required fields, non-numeric IDs, values too long, no lines)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+
   /v1/ap/paymentdetail:
     get:
       tags: [Accounts Payable]
@@ -722,6 +825,7 @@ paths:
   /v1/system/exch_rates:
     get:
       tags: [System]
+      security: []
       summary: List current exchange rates
       responses:
         '200':
@@ -736,6 +840,7 @@ paths:
   /v1/system/periods:
     get:
       tags: [System]
+      security: []
       summary: List periods for the current year
       responses:
         '200':
@@ -750,6 +855,7 @@ paths:
   /v1/system/periods/{year}:
     get:
       tags: [System]
+      security: []
       summary: List periods for a specific year
       parameters:
         - in: path
@@ -775,6 +881,16 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
 components:
+  securitySchemes:
+    ApiKeyHeader:
+      type: apiKey
+      in: header
+      name: apikey
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: apikey
+
   schemas:
     ErrorResponse:
       type: object
@@ -1435,6 +1551,111 @@ components:
         comment:
           type: string
           nullable: true
+
+    PurchaseOrderSingleRequest:
+      type: object
+      required: [header, lines]
+      properties:
+        header:
+          $ref: '#/components/schemas/PurchaseOrderInputHeader'
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PurchaseOrderInputLine'
+
+    PurchaseOrderBatchRequest:
+      type: object
+      required: [purchaseOrders]
+      properties:
+        purchaseOrders:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PurchaseOrderSingleRequest'
+
+    PurchaseOrderInputHeader:
+      type: object
+      description: Dates accept YYYY-MM-DD, YYYYMMDD or MMDDYYYY.
+      required:
+        - companyId
+        - locationId
+        - vendorId
+        - supplierId
+        - buyerId
+        - packingBasis
+      properties:
+        companyId: { type: string, maxLength: 8 }
+        locationId: { type: number }
+        vendorId: { type: number }
+        supplierId: { type: number }
+        divisionId: { type: number }
+        buyerId: { type: number }
+        purchaseGroupId: { type: string, maxLength: 8 }
+        purchaseOrderType:
+          type: string
+          maxLength: 1
+          default: D
+          description: D Direct Ship, S Stock, B Backorder, N Non-stock, P Specials, Q Vendor RFQ
+        purchaseOrderDate: { type: string, maxLength: 10 }
+        requiredDate: { type: string, maxLength: 10 }
+        approved: { type: string, enum: [Y, N], default: N }
+        terms: { type: string, maxLength: 20 }
+        carrierId: { type: string, maxLength: 8 }
+        shippingInstructions: { type: string, maxLength: 100 }
+        receiptDate: { type: string, maxLength: 10 }
+        class1Id: { type: string, maxLength: 8 }
+        class2Id: { type: string, maxLength: 8 }
+        class3Id: { type: string, maxLength: 8 }
+        class4Id: { type: string, maxLength: 8 }
+        class5Id: { type: string, maxLength: 8 }
+        externalPoNo: { type: string, maxLength: 40 }
+        printed: { type: string, enum: [Y, N] }
+        contactId: { type: string, maxLength: 8 }
+        contactName: { type: string, maxLength: 40 }
+        historicalComplete: { type: string, enum: [Y, N] }
+        edi: { type: string, enum: [Y, N] }
+        deliveryTerms: { type: string, maxLength: 20 }
+        specialTerms: { type: string, maxLength: 20 }
+        handlingCodeType: { type: string, maxLength: 20 }
+        transHandlingUnit: { type: string, maxLength: 20 }
+        handlingCodeTime: { type: string, maxLength: 20 }
+        brandName: { type: string, maxLength: 20 }
+        carrierShipMethod: { type: string, maxLength: 20 }
+        carrierPriority: { type: string, maxLength: 20 }
+        packingBasis:
+          type: string
+          maxLength: 16
+          description: Partial, Item Complete, Order Complete, Item Partial, Partial/Order or Hold
+
+    PurchaseOrderInputLine:
+      type: object
+      required:
+        - itemId
+        - unitOfMeasure
+        - unitQuantity
+      properties:
+        itemId: { type: string, maxLength: 40, description: Upper-cased before saving }
+        unitOfMeasure: { type: string, maxLength: 8 }
+        unitQuantity: { type: number }
+        pricingUnit: { type: string, maxLength: 8 }
+        unitPriceDisplay: { type: number }
+        requiredDate: { type: string, maxLength: 10 }
+        dateDue: { type: string, maxLength: 10 }
+        extendedDescription: { type: string, maxLength: 255 }
+        supplierShipDate: { type: string, maxLength: 10 }
+        revisionLevel: { type: string, maxLength: 20 }
+
+    PurchaseOrderCreatedResponse:
+      type: object
+      properties:
+        importSetNo:
+          type: string
+        linesInserted:
+          type: integer
+        externalPoNo:
+          type: string
+          description: Present when externalPoNo was provided
 
     PaginationFooter:
       type: object

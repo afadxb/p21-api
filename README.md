@@ -44,6 +44,21 @@ Use the following optional environment variables to customise the job:
 - `TMP_OE_EXPORT_INTERVAL_MINUTES` – override the 30 minute cadence.
 - `TMP_OE_EXPORT_DIR` – change the output directory (default `exports`).
 
+### TMP_PO export job
+
+A second background job does the same for purchase orders. It scans the
+`TMP_PO_Header` and `TMP_PO_Line` staging tables (create them with
+`tmp_po_tables.sql`) and writes tab-delimited files in the P21 purchase order
+import layout (`docs/PurchaseOrderHeader.xlsx`, `docs/PurchaseOrderLine.xlsx`):
+`POH<Import_Set_No>.txt` for headers and `POL<Import_Set_No>.txt` for lines.
+After writing the files it sets `TMP_PO_Header.Exported` to `Y`.
+
+Optional environment variables:
+
+- `TMP_PO_EXPORT_INTERVAL_MINUTES` – export cadence (default 5 minutes).
+- `TMP_PO_EXPORT_DIR` – output directory (default `exports`).
+- `TMP_PO_EXPORT_RETENTION_DAYS` – delete exported files older than this (default 30).
+
 ### Swagger/OpenAPI URL
 
 When running locally with the default port, open `http://localhost:3000/docs` in your browser to view the interactive documentation. This UI is generated from the repository's `openapi.yaml` specification file.
@@ -224,6 +239,53 @@ set number for each order along with the number of line rows inserted. When a
       "linesInserted": 1,
       "referance1": "ACME HQ Renovation"
     }
+  ]
+}
+```
+
+### `POST /v1/ap/purchaseorder`
+Creates one or more purchase orders by inserting into the `TMP_PO_Header` and
+`TMP_PO_Line` staging tables in a single transaction. Purchase orders have their
+own `Import_Set_No` sequence. This is a separate route from
+`GET /v1/ap/purchaseorders`.
+
+The body can be a single `{ "header": { ... }, "lines": [] }` object or an object
+with a `purchaseOrders` array. Headers must include `companyId`, `locationId`,
+`vendorId`, `supplierId`, `buyerId` and `packingBasis`. `purchaseOrderType`
+defaults to `D` and `approved` defaults to `N`. Each line must include `itemId`,
+`unitOfMeasure` and `unitQuantity`. Item IDs are upper-cased, and line numbers
+are assigned in payload order.
+
+```bash
+curl -X POST http://localhost:3000/v1/ap/purchaseorder \
+  -H "Content-Type: application/json" \
+  -d '{
+    "purchaseOrders": [
+      {
+        "header": {
+          "companyId": "01",
+          "locationId": 100,
+          "vendorId": 1001,
+          "supplierId": 1001,
+          "buyerId": 2001,
+          "packingBasis": "Partial",
+          "externalPoNo": "EXT-1001"
+        },
+        "lines": [
+          { "itemId": "WIDGET-A", "unitOfMeasure": "EA", "unitQuantity": 100, "unitPriceDisplay": 0.0425 }
+        ]
+      }
+    ]
+  }'
+```
+
+Response (`201`):
+
+```json
+{
+  "message": "Purchase orders Accepted",
+  "purchaseOrders": [
+    { "importSetNo": "1", "linesInserted": 1, "externalPoNo": "EXT-1001" }
   ]
 }
 ```

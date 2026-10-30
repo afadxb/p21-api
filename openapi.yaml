@@ -1,12 +1,25 @@
 openapi: 3.0.3
 info:
   title: P21 API
-  version: 1.0.0
-  description: REST API interface to Prophet 21 ERP (SQL Server) for SRX integration.
+  version: 1.1.0
+  description: >
+    REST API interface to Prophet 21 ERP (SQL Server) for sales order, purchase
+    order and accounts payable integrations.
+
+
+    Sales (`/v1/sales`) and Accounts Payable (`/v1/ap`) endpoints require an API
+    key, sent as the `apikey` header or `apikey` query parameter. Use the
+    Authorize button to set it for Try it out.
 
 servers:
+  - url: https://api.accuratefasteners.com
+    description: Production
   - url: http://localhost:3000
     description: Local development
+
+security:
+  - ApiKeyHeader: []
+  - ApiKeyQuery: []
 
 tags:
   - name: Health
@@ -19,6 +32,7 @@ paths:
   /health:
     get:
       tags: [Health]
+      security: []
       summary: Health check
       responses:
         '200':
@@ -209,20 +223,31 @@ paths:
   /v1/inventory/items:
     get:
       tags: [Inventory]
+      security: []
       summary: List inventory items
       parameters:
+        - in: query
+          name: paging
+          schema:
+            type: string
+            enum: ['true', 'false']
+            default: 'false'
+          description: >
+            When "true", returns the requested page and the full totalCount.
+            When "false", returns the first `limit` items and `page` is ignored.
         - in: query
           name: page
           schema:
             type: integer
             minimum: 1
             default: 1
+          description: Page number. Only applies when paging=true.
         - in: query
           name: limit
           schema:
             type: integer
             minimum: 1
-            default: 500
+            default: 100
         - in: query
           name: inactive
           schema:
@@ -263,6 +288,7 @@ paths:
   /v1/inventory/items/{item_id}:
     get:
       tags: [Inventory]
+      security: []
       summary: Get a single inventory item
       parameters:
         - in: path
@@ -722,6 +748,7 @@ paths:
   /v1/system/exch_rates:
     get:
       tags: [System]
+      security: []
       summary: List current exchange rates
       responses:
         '200':
@@ -736,6 +763,7 @@ paths:
   /v1/system/periods:
     get:
       tags: [System]
+      security: []
       summary: List periods for the current year
       responses:
         '200':
@@ -750,6 +778,7 @@ paths:
   /v1/system/periods/{year}:
     get:
       tags: [System]
+      security: []
       summary: List periods for a specific year
       parameters:
         - in: path
@@ -775,6 +804,16 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
 components:
+  securitySchemes:
+    ApiKeyHeader:
+      type: apiKey
+      in: header
+      name: apikey
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: apikey
+
   schemas:
     ErrorResponse:
       type: object

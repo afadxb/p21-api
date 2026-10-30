@@ -541,6 +541,83 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/ap/purchaseorder:
+    post:
+      tags: [Accounts Payable]
+      summary: Create one or more purchase orders
+      description: >
+        Accepts a batch of purchase orders or a single purchase order. Each
+        purchase order must include a header and at least one line. Orders are
+        saved to the TMP_PO_Header/TMP_PO_Line staging tables and exported to
+        tab-delimited POH/POL files for the P21 purchase order import.
+        Item IDs and single-character flags are upper-cased. Line numbers are
+        assigned in payload order.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/PurchaseOrderBatchRequest'
+                - $ref: '#/components/schemas/PurchaseOrderSingleRequest'
+            examples:
+              batch:
+                summary: Batch of purchase orders
+                value:
+                  purchaseOrders:
+                    - header:
+                        companyId: "01"
+                        locationId: 100
+                        vendorId: 1001
+                        supplierId: 1001
+                        buyerId: 2001
+                        purchaseOrderType: "S"
+                        packingBasis: "Partial"
+                        requiredDate: "2026-11-15"
+                        externalPoNo: "EXT-1001"
+                      lines:
+                        - itemId: "WIDGET-A"
+                          unitOfMeasure: "EA"
+                          unitQuantity: 100
+                          unitPriceDisplay: 0.0425
+              single:
+                summary: Single purchase order
+                value:
+                  header:
+                    companyId: "01"
+                    locationId: 100
+                    vendorId: 1001
+                    supplierId: 1001
+                    buyerId: 2001
+                    packingBasis: "Partial"
+                  lines:
+                    - itemId: "WIDGET-A"
+                      unitOfMeasure: "EA"
+                      unitQuantity: 100
+      responses:
+        '201':
+          description: Purchase orders accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Purchase orders Accepted
+                  purchaseOrders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PurchaseOrderCreatedResponse'
+        '400':
+          description: Validation error (missing required fields, non-numeric IDs, values too long, no lines)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+
   /v1/ap/paymentdetail:
     get:
       tags: [Accounts Payable]
@@ -1474,6 +1551,111 @@ components:
         comment:
           type: string
           nullable: true
+
+    PurchaseOrderSingleRequest:
+      type: object
+      required: [header, lines]
+      properties:
+        header:
+          $ref: '#/components/schemas/PurchaseOrderInputHeader'
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PurchaseOrderInputLine'
+
+    PurchaseOrderBatchRequest:
+      type: object
+      required: [purchaseOrders]
+      properties:
+        purchaseOrders:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PurchaseOrderSingleRequest'
+
+    PurchaseOrderInputHeader:
+      type: object
+      description: Dates accept YYYY-MM-DD, YYYYMMDD or MMDDYYYY.
+      required:
+        - companyId
+        - locationId
+        - vendorId
+        - supplierId
+        - buyerId
+        - packingBasis
+      properties:
+        companyId: { type: string, maxLength: 8 }
+        locationId: { type: number }
+        vendorId: { type: number }
+        supplierId: { type: number }
+        divisionId: { type: number }
+        buyerId: { type: number }
+        purchaseGroupId: { type: string, maxLength: 8 }
+        purchaseOrderType:
+          type: string
+          maxLength: 1
+          default: D
+          description: D Direct Ship, S Stock, B Backorder, N Non-stock, P Specials, Q Vendor RFQ
+        purchaseOrderDate: { type: string, maxLength: 10 }
+        requiredDate: { type: string, maxLength: 10 }
+        approved: { type: string, enum: [Y, N], default: N }
+        terms: { type: string, maxLength: 20 }
+        carrierId: { type: string, maxLength: 8 }
+        shippingInstructions: { type: string, maxLength: 100 }
+        receiptDate: { type: string, maxLength: 10 }
+        class1Id: { type: string, maxLength: 8 }
+        class2Id: { type: string, maxLength: 8 }
+        class3Id: { type: string, maxLength: 8 }
+        class4Id: { type: string, maxLength: 8 }
+        class5Id: { type: string, maxLength: 8 }
+        externalPoNo: { type: string, maxLength: 40 }
+        printed: { type: string, enum: [Y, N] }
+        contactId: { type: string, maxLength: 8 }
+        contactName: { type: string, maxLength: 40 }
+        historicalComplete: { type: string, enum: [Y, N] }
+        edi: { type: string, enum: [Y, N] }
+        deliveryTerms: { type: string, maxLength: 20 }
+        specialTerms: { type: string, maxLength: 20 }
+        handlingCodeType: { type: string, maxLength: 20 }
+        transHandlingUnit: { type: string, maxLength: 20 }
+        handlingCodeTime: { type: string, maxLength: 20 }
+        brandName: { type: string, maxLength: 20 }
+        carrierShipMethod: { type: string, maxLength: 20 }
+        carrierPriority: { type: string, maxLength: 20 }
+        packingBasis:
+          type: string
+          maxLength: 16
+          description: Partial, Item Complete, Order Complete, Item Partial, Partial/Order or Hold
+
+    PurchaseOrderInputLine:
+      type: object
+      required:
+        - itemId
+        - unitOfMeasure
+        - unitQuantity
+      properties:
+        itemId: { type: string, maxLength: 40, description: Upper-cased before saving }
+        unitOfMeasure: { type: string, maxLength: 8 }
+        unitQuantity: { type: number }
+        pricingUnit: { type: string, maxLength: 8 }
+        unitPriceDisplay: { type: number }
+        requiredDate: { type: string, maxLength: 10 }
+        dateDue: { type: string, maxLength: 10 }
+        extendedDescription: { type: string, maxLength: 255 }
+        supplierShipDate: { type: string, maxLength: 10 }
+        revisionLevel: { type: string, maxLength: 20 }
+
+    PurchaseOrderCreatedResponse:
+      type: object
+      properties:
+        importSetNo:
+          type: string
+        linesInserted:
+          type: integer
+        externalPoNo:
+          type: string
+          description: Present when externalPoNo was provided
 
     PaginationFooter:
       type: object

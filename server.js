@@ -14,6 +14,7 @@ app.use('/v1/inventory/items', require('./routes/v1/inventory/items'));
 app.use('/v1/ap/suppliers', require('./routes/v1/ap/suppliers'));
 app.use('/v1/ap/paymentterms', require('./routes/v1/ap/paymentterms'));
 app.use('/v1/ap/purchaseorders', require('./routes/v1/ap/purchaseorders'));
+app.use('/v1/ap/purchaseorder', require('./routes/v1/ap/purchaseorder'));
 app.use('/v1/ap/paymentdetail', require('./routes/v1/ap/paymentdetail'));
 app.use('/v1/ap/receipts', require('./routes/v1/ap/receipts'));
 app.use('/v1/ap/voucher', require('./routes/v1/ap/voucher'));
@@ -39,6 +40,10 @@ const { startExportJob, stopExportJob } = require('./jobs/exportTmpOrders');
 startExportJob().catch((err) => {
   logger.error({ err }, 'Failed to start TMP_OE export job');
 });
+const { startPurchaseOrderExportJob, stopPurchaseOrderExportJob } = require('./jobs/exportTmpPurchaseOrders');
+startPurchaseOrderExportJob().catch((err) => {
+  logger.error({ err }, 'Failed to start TMP_PO export job');
+});
 
 // 404 handler
 app.all('*', (req, res) => {
@@ -60,6 +65,7 @@ const server = app.listen(PORT, () => logger.info({ port: PORT }, 'P21 API runni
 function shutdown(signal) {
   logger.info({ signal }, 'Shutdown signal received, closing gracefully');
   stopExportJob();
+  stopPurchaseOrderExportJob();
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);

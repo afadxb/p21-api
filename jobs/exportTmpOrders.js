@@ -108,6 +108,17 @@ const noteLayout = [
   { key: 'Note' },
 ];
 
+const BIN_ALLOCATION_CUSTOMER_ID = '113378';
+const PRIORITY_BIN_PREFIX = 'T0';
+
+const binLayout = [
+  { key: 'Import_Set_Number', zeroPadLength: 4 },
+  { key: 'Line_No' },
+  { key: 'Bin_Code' },
+  { key: 'Unit_Quantity', formatter: formatQuantity },
+  { key: 'Unit_of_Measure' },
+];
+
 function normaliseYear(yearPart) {
   if (!yearPart) {
     return '';
@@ -260,6 +271,121 @@ async function fetchNoteRecords(pool, importSet) {
   return result.recordset;
 }
 
+async function fetchBinStock(pool, itemId, locationId, customerId) {
+  const request = pool.request();
+  request.input('itemId', sql.NVarChar(40), itemId);
+  request.input('locationId', sql.Decimal(19, 0), locationId);
+  request.input('customerId', sql.Decimal(19, 0), customerId);
+  request.input('priorityPrefix', sql.NVarChar(12), `${PRIORITY_BIN_PREFIX}%`);
+  // Item_ID may be the customer's part number; resolve it via inv_xref first, then fall back to P21 item_id.
+  const result = await request.query(`
+    DECLARE @invMastUid INT = (
+      SELECT TOP 1 inv_xref.inv_mast_uid
+      FROM inv_xref
+      WHERE inv_xref.their_item_id = @itemId
+        AND inv_xref.customer_id = @customerId
+    );
+    IF @invMastUid IS NULL
+      SELECT @invMastUid = inv_mast_uid FROM inv_mast WHERE item_id = @itemId;
+
+    SELECT inv_bin.bin AS Bin_Code,
+           inv_bin.quantity - ISNULL(inv_bin.qty_allocated, 0) AS Available_Qty
+    FROM inv_bin
+    INNER JOIN bin ON bin.bin_id = inv_bin.bin
+      AND bin.location_id = inv_bin.location_id
+      AND bin.delete_flag = 'N'
+    INNER JOIN inv_loc ON inv_loc.location_id = inv_bin.location_id
+      AND inv_loc.inv_mast_uid = inv_bin.inv_mast_uid
+    INNER JOIN bin_type ON bin_type.bin_type_uid = bin.bin_type_uid
+    WHERE inv_bin.inv_mast_uid = @invMastUid
+      AND inv_bin.location_id = @locationId
+      AND bin_type.pickable_flag = 'Y'
+      AND bin_type.quarantine_flag = 'N'
+      AND inv_bin.quantity - ISNULL(inv_bin.qty_allocated, 0) > 0
+    ORDER BY CASE WHEN inv_bin.bin LIKE @priorityPrefix THEN 0 ELSE 1 END, inv_bin.bin;
+  `);
+  return result.recordset.map((row) => ({
+    Bin_Code: row.Bin_Code,
+    Available_Qty: Number(row.Available_Qty),
+    Is_Priority: String(row.Bin_Code).toUpperCase().startsWith(PRIORITY_BIN_PREFIX),
+  }));
+}
+
+function roundQty(value) {
+  return Number(Number(value).toFixed(4));
+}
+
+function isBinAllocationCustomer(headerRecord) {
+  const id = Number(headerRecord?.Customer_ID);
+  return Number.isFinite(id) && String(id) === BIN_ALLOCATION_CUSTOMER_ID;
+}
+
+async function buildBinAllocations(pool, importSet, headerRecord, lineRecords) {
+  if (!isBinAllocationCustomer(headerRecord)) {
+    return [];
+  }
+
+  const stockCache = new Map();
+  const allocations = [];
+
+  for (const line of lineRecords) {
+    let remaining = roundQty(line.Unit_Quantity);
+    const locationId = line.Source_Location_ID || headerRecord.Source_Location_ID || headerRecord.Sales_Location_ID;
+
+    if (!line.Item_ID || !locationId || !(remaining > 0)) {
+      logger.warn(
+        { importSet, lineNo: line.Line_No, itemId: line.Item_ID, locationId },
+        'Skipping bin allocation: missing item, location or quantity'
+      );
+      continue;
+    }
+
+    const cacheKey = `${line.Item_ID}|${locationId}`;
+    if (!stockCache.has(cacheKey)) {
+      stockCache.set(cacheKey, await fetchBinStock(pool, line.Item_ID, locationId, headerRecord.Customer_ID));
+    }
+
+    const bins = stockCache.get(cacheKey);
+    // Only allocate when T0 stock exists; T0 bins first, then top up from other pickable bins.
+    if (!bins.some((bin) => bin.Is_Priority && bin.Available_Qty > 0)) {
+      logger.info(
+        { importSet, lineNo: line.Line_No, itemId: line.Item_ID, locationId },
+        `No ${PRIORITY_BIN_PREFIX} bin stock; leaving allocation to P21`
+      );
+      continue;
+    }
+
+    for (const bin of bins) {
+      if (remaining <= 0) {
+        break;
+      }
+      if (bin.Available_Qty <= 0) {
+        continue;
+      }
+
+      const qty = roundQty(Math.min(remaining, bin.Available_Qty));
+      allocations.push({
+        Import_Set_Number: line.Import_Set_Number,
+        Line_No: line.Line_No,
+        Bin_Code: bin.Bin_Code,
+        Unit_Quantity: qty,
+        Unit_of_Measure: line.Unit_of_Measure,
+      });
+      bin.Available_Qty = roundQty(bin.Available_Qty - qty);
+      remaining = roundQty(remaining - qty);
+    }
+
+    if (remaining > 0) {
+      logger.warn(
+        { importSet, lineNo: line.Line_No, itemId: line.Item_ID, locationId, unallocated: remaining },
+        'Insufficient pickable bin stock to fully allocate line; remainder left to P21'
+      );
+    }
+  }
+
+  return allocations;
+}
+
 async function markHeaderExported(pool, importSet) {
   const request = pool.request();
   request.input('importSet', sql.NVarChar(8), importSet);
@@ -270,7 +396,7 @@ async function markHeaderExported(pool, importSet) {
   `);
 }
 
-async function writeFiles(importSet, headerRecord, lineRecords, noteRecords) {
+async function writeFiles(importSet, headerRecord, lineRecords, noteRecords, binRecords) {
   if (!headerRecord) {
     throw new Error(`Missing TMP_OE_Header record for import set ${importSet}`);
   }
@@ -296,6 +422,13 @@ async function writeFiles(importSet, headerRecord, lineRecords, noteRecords) {
     result.noteFile = noteFile;
   }
 
+  if (binRecords && binRecords.length > 0) {
+    const binContent = binRecords.map((record) => formatRecord(record, binLayout)).join(os.EOL) + os.EOL;
+    const binFile = path.join(baseDir, `SOB${importSet}.txt`);
+    await fs.writeFile(binFile, binContent, 'utf8');
+    result.binFile = binFile;
+  }
+
   return result;
 }
 
@@ -314,9 +447,10 @@ async function exportImportSet(pool, importSet) {
   }
 
   const noteRecords = await fetchNoteRecords(pool, importSet);
-  const files = await writeFiles(importSet, headerRecord, lineRecords, noteRecords);
+  const binRecords = await buildBinAllocations(pool, importSet, headerRecord, lineRecords);
+  const files = await writeFiles(importSet, headerRecord, lineRecords, noteRecords, binRecords);
   await markHeaderExported(pool, importSet);
-  logger.info({ importSet, headerFile: files.headerFile, lineFile: files.lineFile, noteFile: files.noteFile || null }, 'Exported TMP_OE records');
+  logger.info({ importSet, headerFile: files.headerFile, lineFile: files.lineFile, noteFile: files.noteFile || null, binFile: files.binFile || null }, 'Exported TMP_OE records');
 }
 
 async function runExportCycle() {
@@ -348,7 +482,7 @@ async function cleanupOldExports() {
 
   try {
     const files = await fs.readdir(baseDir);
-    const exportFiles = files.filter((f) => /^SO(?:H|L|NL)\d+\.txt$/i.test(f));
+    const exportFiles = files.filter((f) => /^SO(?:H|L|NL|B)\d+\.txt$/i.test(f));
 
     for (const file of exportFiles) {
       const filePath = path.join(baseDir, file);
@@ -404,6 +538,9 @@ module.exports = {
     formatRecord,
     headerLayout,
     lineLayout,
+    binLayout,
+    isBinAllocationCustomer,
+    buildBinAllocations,
     formatDate,
     formatQuantity,
     formatPrice,
